@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../models/land_model.dart';
 import '../../models/dose_model.dart';
-import '../../services/firebase_service.dart';
+import '../../services/local_storage_service.dart';
 
 class LandDetailsScreen extends StatelessWidget {
   final LandModel land;
@@ -34,7 +35,7 @@ class LandDetailsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildDoseHistory(),
+                  _buildDoseHistory(context),
                 ],
               ),
             ),
@@ -48,11 +49,11 @@ class LandDetailsScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF2E7D32), Color(0xFFA5D6A7)],
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
@@ -144,9 +145,11 @@ class LandDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDoseHistory() {
+  Widget _buildDoseHistory(BuildContext context) {
+    final storageService = Provider.of<LocalStorageService>(context);
+    
     return StreamBuilder<List<DoseModel>>(
-      stream: FirebaseService().getDosesForLand(land.id),
+      stream: storageService.getDosesForLand(land.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

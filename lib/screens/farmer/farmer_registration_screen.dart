@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/firebase_service.dart';
-import '../../models/farmer_model.dart';
 import 'farmer_home_screen.dart';
 
 class FarmerRegistrationScreen extends StatefulWidget {
@@ -25,10 +23,6 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Farmer Registration'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -181,38 +175,20 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      try {
-        final farmer = FarmerModel(
-          id: '',
-          name: _nameController.text.trim(),
-          village: _villageController.text.trim(),
-          phoneNumber: _phoneController.text.trim(),
-          alternatePhone: _alternatePhoneController.text.trim().isEmpty
-              ? null
-              : _alternatePhoneController.text.trim(),
-          registrationDate: DateTime.now(),
+      // Simulate registration delay
+      await Future.delayed(const Duration(seconds: 2));
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isRegistered', true);
+      await prefs.setString('farmerName', _nameController.text);
+      await prefs.setString('farmerVillage', _villageController.text);
+      await prefs.setString('farmerPhone', _phoneController.text);
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const FarmerHomeScreen()),
         );
-
-        final farmerId = await FirebaseService().addFarmer(farmer);
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isRegistered', true);
-        await prefs.setString('farmerId', farmerId);
-
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const FarmerHomeScreen()),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Registration failed: $e')),
-          );
-        }
-      } finally {
-        setState(() => _isLoading = false);
       }
     }
   }

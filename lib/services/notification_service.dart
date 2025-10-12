@@ -1,89 +1,107 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
-// Background message handler
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Background message: ${message.notification?.title}');
-}
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationService {
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = 
-      FlutterLocalNotificationsPlugin();
+  // Mock notifications list
+  static List<Map<String, dynamic>> _notifications = [];
 
   Future<void> initialize() async {
-    // Request permission
-    await _fcm.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    // Initialize local notifications
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    await _localNotifications.initialize(initSettings);
-
-    // Set background handler
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    // Get FCM token
-    String? token = await _fcm.getToken();
-    print('FCM Token: $token');
-
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _showNotification(message);
-    });
+    print('✅ Notification Service Initialized (Mock Mode)');
+    _loadMockNotifications();
   }
 
-  Future<void> _showNotification(RemoteMessage message) async {
-    const androidDetails = AndroidNotificationDetails(
-      'skp_smartfarm_channel',
-      'SKP SmartFarm Notifications',
-      channelDescription: 'Notifications for fertilizer doses',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-    await _localNotifications.show(
-      message.hashCode,
-      message.notification?.title ?? 'SKP SmartFarm',
-      message.notification?.body ?? 'You have a new update',
-      details,
-    );
+  void _loadMockNotifications() {
+    _notifications = [
+      {
+        'id': '1',
+        'title': 'Next Dose Reminder',
+        'message': 'Your next fertilizer dose for East Field is scheduled for tomorrow',
+        'time': DateTime.now().subtract(const Duration(hours: 2)),
+        'type': 'reminder',
+        'isRead': false,
+      },
+      {
+        'id': '2',
+        'title': 'Payment Pending',
+        'message': 'You have ₹2,500 credit pending for last month',
+        'time': DateTime.now().subtract(const Duration(days: 1)),
+        'type': 'payment',
+        'isRead': false,
+      },
+      {
+        'id': '3',
+        'title': 'Weather Alert',
+        'message': 'Heavy rain expected in next 24 hours',
+        'time': DateTime.now().subtract(const Duration(days: 2)),
+        'type': 'weather',
+        'isRead': true,
+      },
+    ];
   }
 
+  // Schedule a notification (mock version)
   Future<void> scheduleNotification({
     required String title,
     required String body,
     required DateTime scheduledDate,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'skp_smartfarm_channel',
-      'SKP SmartFarm Notifications',
-      channelDescription: 'Notifications for fertilizer doses',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
+    print('📅 Notification Scheduled:');
+    print('   Title: $title');
+    print('   Body: $body');
+    print('   Date: $scheduledDate');
 
-    const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    // Add to mock notifications list
+    _notifications.insert(0, {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': title,
+      'message': body,
+      'time': DateTime.now(),
+      'type': 'reminder',
+      'isRead': false,
+    });
+  }
 
-    await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      details,
-    );
+  // Show immediate notification (mock version)
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    String type = 'info',
+  }) async {
+    print('🔔 Notification:');
+    print('   Title: $title');
+    print('   Body: $body');
+
+    // Add to mock notifications list
+    _notifications.insert(0, {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': title,
+      'message': body,
+      'time': DateTime.now(),
+      'type': type,
+      'isRead': false,
+    });
+  }
+
+  // Get all notifications
+  List<Map<String, dynamic>> getNotifications() {
+    return _notifications;
+  }
+
+  // Mark notification as read
+  void markAsRead(String notificationId) {
+    final index = _notifications.indexWhere((n) => n['id'] == notificationId);
+    if (index != -1) {
+      _notifications[index]['isRead'] = true;
+    }
+  }
+
+  // Clear all notifications
+  void clearAllNotifications() {
+    _notifications.clear();
+  }
+
+  // Get unread count
+  int getUnreadCount() {
+    return _notifications.where((n) => n['isRead'] == false).length;
   }
 }

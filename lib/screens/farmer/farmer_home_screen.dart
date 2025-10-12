@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../services/firebase_service.dart';
+import 'package:provider/provider.dart';
+import '../../services/local_storage_service.dart';
 import '../../models/land_model.dart';
 import '../../models/dose_model.dart';
 import 'weather_screen.dart';
 import 'notifications_screen.dart';
 import 'land_details_screen.dart';
+import 'dart:math';
+import '../../main.dart'; // Add this line for RoleSelectionScreen
 
 class FarmerHomeScreen extends StatefulWidget {
   const FarmerHomeScreen({super.key});
@@ -18,7 +21,7 @@ class FarmerHomeScreen extends StatefulWidget {
 
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   int _selectedIndex = 0;
-  String _farmerId = '';
+  String _farmerId = '1'; // Default demo farmer ID
   String _farmerName = '';
 
   @override
@@ -30,7 +33,6 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   Future<void> _loadFarmerData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _farmerId = prefs.getString('farmerId') ?? '';
       _farmerName = prefs.getString('farmerName') ?? 'Farmer';
     });
   }
@@ -109,6 +111,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
+  // ----------------------------- Home Screen -----------------------------
   Widget _buildHomeContent() {
     return RefreshIndicator(
       onRefresh: () async {
@@ -164,7 +167,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome Back! 🌾',
+                  'Welcome Back, $_farmerName 🌾',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -256,12 +259,10 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   }
 
   Widget _buildLandsList() {
-    if (_farmerId.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final storageService = Provider.of<LocalStorageService>(context);
 
     return StreamBuilder<List<LandModel>>(
-      stream: FirebaseService().getLandsByFarmerId(_farmerId),
+      stream: storageService.getLandsByFarmerId(_farmerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -277,21 +278,22 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           itemCount: snapshot.data!.length,
           itemBuilder: (context, index) {
             final land = snapshot.data![index];
-            return _buildLandCard(land);
+            return _buildLandCard(land, storageService);
           },
         );
       },
     );
   }
 
-  Widget _buildLandCard(LandModel land) {
+  Widget _buildLandCard(LandModel land, LocalStorageService storageService) {
     return FutureBuilder<DoseModel?>(
-      future: FirebaseService().getLatestDoseForLand(land.id),
+      future: storageService.getLatestDoseForLand(land.id),
       builder: (context, snapshot) {
         final latestDose = snapshot.data;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: InkWell(
             onTap: () {
               Navigator.push(
@@ -453,7 +455,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Contact your shop owner to add lands',
+            'Demo data will be shown here',
             textAlign: TextAlign.center,
             style: GoogleFonts.nunito(
               fontSize: 14,
@@ -465,6 +467,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
+  // ----------------------------- Profile Screen -----------------------------
   Widget _buildProfileContent() {
     return Center(
       child: Padding(
@@ -477,25 +480,33 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               backgroundColor: Color(0xFF2E7D32),
               child: Icon(Icons.person, size: 60, color: Colors.white),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Text(
-              _farmerName,
+              _farmerName.isNotEmpty ? _farmerName : "Farmer",
               style: GoogleFonts.poppins(
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 8),
+            Text(
+              "Farmer ID: $_farmerId",
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 30),
             ElevatedButton.icon(
-              onPressed: _logout,
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
+              onPressed: _contactShop,
+              icon: const Icon(Icons.phone),
+              label: const Text("Contact Support"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: const Color(0xFF2E7D32),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -505,27 +516,61 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
+  // ----------------------------- Helper Methods -----------------------------
   Future<void> _contactShop() async {
-    const phoneNumber = 'tel:+919876543210';
-    final uri = Uri.parse(phoneNumber);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/');
+    final Uri phoneUri = Uri(scheme: 'tel', path: '+919876543210');
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Unable to open dialer")),
+      );
     }
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return "${date.day}/${date.month}/${date.year}";
   }
 
   int _getDaysUntil(DateTime date) {
-    return date.difference(DateTime.now()).inDays;
+    final now = DateTime.now();
+    return date.difference(now).inDays;
   }
+  Future<void> _logout() async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(
+        'Logout',
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+      ),
+      content: Text(
+        'Are you sure you want to logout?',
+        style: GoogleFonts.nunito(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Logout'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed == true) {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+        (route) => false,
+      );
+    }
+  }
+}
 }

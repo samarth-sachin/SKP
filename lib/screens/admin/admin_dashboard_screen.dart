@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/firebase_service.dart';
+import 'package:provider/provider.dart';
+import '../../services/local_storage_service.dart';
 import 'farmer_search_screen.dart';
 import 'add_dose_screen.dart';
 import 'analytics_screen.dart';
+import '../../main.dart'; // Add this line for RoleSelectionScreen
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -115,8 +117,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildDashboardContent() {
+    final storageService = Provider.of<LocalStorageService>(context);
+    
     return FutureBuilder<Map<String, dynamic>>(
-      future: FirebaseService().getAnalytics(),
+      future: storageService.getAnalytics(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -293,11 +297,49 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  // Future<void> _logout() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   await prefs.clear();
+  //   if (mounted) {
+  //     Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+  //   }
+  // }
   Future<void> _logout() async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(
+        'Logout',
+        style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+      ),
+      content: Text(
+        'Are you sure you want to logout?',
+        style: GoogleFonts.nunito(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Logout'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed == true) {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     if (mounted) {
-      Navigator.pushReplacementNamed(context, '/');
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+        (route) => false,
+      );
     }
   }
+}
+
 }

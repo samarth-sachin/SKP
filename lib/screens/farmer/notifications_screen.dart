@@ -1,35 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../services/notification_service.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock notifications - replace with real Firebase data
-    final notifications = [
-      {
-        'title': 'Next Dose Reminder',
-        'message': 'Your next fertilizer dose for Land A is scheduled for tomorrow',
-        'time': DateTime.now().subtract(const Duration(hours: 2)),
-        'type': 'reminder',
-      },
-      {
-        'title': 'Payment Pending',
-        'message': 'You have ₹2,500 credit pending for last month',
-        'time': DateTime.now().subtract(const Duration(days: 1)),
-        'type': 'payment',
-      },
-      {
-        'title': 'Weather Alert',
-        'message': 'Heavy rain expected in next 24 hours',
-        'time': DateTime.now().subtract(const Duration(days: 2)),
-        'type': 'weather',
-      },
-    ];
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
 
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final NotificationService _notificationService = NotificationService();
+  List<Map<String, dynamic>> notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  void _loadNotifications() {
+    setState(() {
+      notifications = _notificationService.getNotifications();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          if (notifications.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.clear_all),
+              onPressed: () {
+                setState(() {
+                  _notificationService.clearAllNotifications();
+                  notifications = [];
+                });
+              },
+            ),
+        ],
+      ),
       body: notifications.isEmpty
           ? _buildEmptyState()
           : ListView.builder(
@@ -42,6 +56,13 @@ class NotificationsScreen extends StatelessWidget {
                   message: notification['message'] as String,
                   time: notification['time'] as DateTime,
                   type: notification['type'] as String,
+                  isRead: notification['isRead'] as bool,
+                  onTap: () {
+                    setState(() {
+                      _notificationService.markAsRead(notification['id']);
+                      notifications[index]['isRead'] = true;
+                    });
+                  },
                 );
               },
             ),
@@ -53,58 +74,80 @@ class NotificationsScreen extends StatelessWidget {
     required String message,
     required DateTime time,
     required String type,
+    required bool isRead,
+    required VoidCallback onTap,
   }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _getNotificationColor(type).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+      color: isRead ? Colors.white : const Color(0xFFA5D6A7).withOpacity(0.1),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _getNotificationColor(type).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  _getNotificationIcon(type),
+                  color: _getNotificationColor(type),
+                  size: 24,
+                ),
               ),
-              child: Icon(
-                _getNotificationIcon(type),
-                color: _getNotificationColor(type),
-                size: 24,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (!isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF2E7D32),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      message,
+                      style: GoogleFonts.nunito(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _formatTime(time),
+                      style: GoogleFonts.nunito(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    message,
-                    style: GoogleFonts.nunito(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _formatTime(time),
-                    style: GoogleFonts.nunito(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

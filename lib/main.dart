@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'services/firebase_service.dart';
-import 'services/notification_service.dart';
+import 'package:provider/provider.dart';
+import 'services/local_storage_service.dart';
 import 'screens/farmer/farmer_home_screen.dart';
 import 'screens/farmer/farmer_registration_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  await NotificationService().initialize();
   runApp(const SKPSmartFarmApp());
 }
 
@@ -21,10 +17,8 @@ class SKPSmartFarmApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => FirebaseService()),
-      ],
+    return ChangeNotifierProvider(
+      create: (_) => LocalStorageService(),
       child: MaterialApp(
         title: 'SKP SmartFarm',
         debugShowCheckedModeBanner: false,
@@ -36,9 +30,7 @@ class SKPSmartFarmApp extends StatelessWidget {
             primary: const Color(0xFF2E7D32),
             secondary: const Color(0xFFA5D6A7),
           ),
-          textTheme: GoogleFonts.nunitoTextTheme(
-            Theme.of(context).textTheme,  // ← Fixed: added base theme
-          ),
+          textTheme: GoogleFonts.nunitoTextTheme(),
           appBarTheme: AppBarTheme(
             backgroundColor: const Color(0xFF2E7D32),
             elevation: 0,

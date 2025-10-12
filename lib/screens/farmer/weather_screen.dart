@@ -1,103 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../services/weather_service.dart';
-import '../../models/weather_model.dart';
 
-class WeatherScreen extends StatefulWidget {
+class WeatherScreen extends StatelessWidget {
   const WeatherScreen({super.key});
 
   @override
-  State<WeatherScreen> createState() => _WeatherScreenState();
-}
-
-class _WeatherScreenState extends State<WeatherScreen> {
-  final WeatherService _weatherService = WeatherService();
-  WeatherModel? _currentWeather;
-  bool _isLoading = true;
-  String _errorMessage = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWeather();
-  }
-
-  Future<void> _loadWeather() async {
-    setState(() => _isLoading = true);
-    try {
-      // You can replace with user's village name or use location coordinates
-      final weather = await _weatherService.getCurrentWeather('Mumbai');
-      setState(() {
-        _currentWeather = weather;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Unable to load weather data';
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Mock weather data for demo
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _loadWeather,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage.isNotEmpty
-                ? _buildErrorView()
-                : _buildWeatherContent(),
-      ),
-    );
-  }
-
-  Widget _buildErrorView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.cloud_off, size: 100, color: Colors.grey[400]),
-          const SizedBox(height: 20),
-          Text(
-            _errorMessage,
-            style: GoogleFonts.nunito(fontSize: 16, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _loadWeather,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeatherContent() {
-    if (_currentWeather == null) return const SizedBox();
-
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildMainWeatherCard(),
-            const SizedBox(height: 20),
-            Text(
-              'Weather Details / हवामान तपशील',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildMainWeatherCard(),
+              const SizedBox(height: 20),
+              Text(
+                'Weather Details / हवामान तपशील',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _buildWeatherDetails(),
-            const SizedBox(height: 20),
-            _buildFarmingAdvice(),
-          ],
+              const SizedBox(height: 12),
+              _buildWeatherDetails(),
+              const SizedBox(height: 20),
+              _buildFarmingAdvice(),
+            ],
+          ),
         ),
       ),
     );
@@ -108,12 +39,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF2E7D32),
-            const Color(0xFFA5D6A7),
+            Color(0xFF2E7D32),
+            Color(0xFFA5D6A7),
           ],
         ),
         borderRadius: BorderRadius.circular(24),
@@ -129,10 +60,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.location_on, color: Colors.white, size: 20),
+              const Icon(Icons.location_on, color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
-                _currentWeather!.cityName,
+                'Pune, Maharashtra',
                 style: GoogleFonts.nunito(
                   fontSize: 18,
                   color: Colors.white,
@@ -142,14 +73,14 @@ class _WeatherScreenState extends State<WeatherScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          Icon(
-            _getWeatherIcon(_currentWeather!.description),
+          const Icon(
+            Icons.wb_sunny,
             size: 100,
             color: Colors.white,
           ),
           const SizedBox(height: 20),
           Text(
-            '${_currentWeather!.temperature.round()}°C',
+            '28°C',
             style: GoogleFonts.poppins(
               fontSize: 64,
               fontWeight: FontWeight.bold,
@@ -159,7 +90,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _currentWeather!.description.toUpperCase(),
+            'PARTLY CLOUDY',
             style: GoogleFonts.nunito(
               fontSize: 18,
               color: Colors.white.withOpacity(0.9),
@@ -180,7 +111,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
               child: _buildDetailCard(
                 icon: Icons.water_drop,
                 label: 'Humidity\nआर्द्रता',
-                value: '${_currentWeather!.humidity}%',
+                value: '65%',
                 color: Colors.blue,
               ),
             ),
@@ -189,7 +120,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
               child: _buildDetailCard(
                 icon: Icons.air,
                 label: 'Wind Speed\nवारा',
-                value: '${_currentWeather!.windSpeed} km/h',
+                value: '12 km/h',
                 color: Colors.grey,
               ),
             ),
@@ -202,7 +133,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
               child: _buildDetailCard(
                 icon: Icons.cloud,
                 label: 'Rain Chance\nपाऊस',
-                value: '${_currentWeather!.rainChance}%',
+                value: '20%',
                 color: Colors.indigo,
               ),
             ),
@@ -211,7 +142,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
               child: _buildDetailCard(
                 icon: Icons.thermostat,
                 label: 'Feels Like\nजाणवतो',
-                value: '${_currentWeather!.temperature.round()}°C',
+                value: '30°C',
                 color: Colors.orange,
               ),
             ),
@@ -267,9 +198,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
   }
 
   Widget _buildFarmingAdvice() {
-    String advice = _getFarmingAdvice();
-    IconData adviceIcon = _getAdviceIcon();
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -279,7 +207,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
       ),
       child: Row(
         children: [
-          Icon(adviceIcon, size: 40, color: Colors.amber[800]),
+          Icon(Icons.check_circle, size: 40, color: Colors.amber[800]),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -295,7 +223,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  advice,
+                  'Good weather for farming activities today!',
                   style: GoogleFonts.nunito(
                     fontSize: 14,
                     color: Colors.amber[900],
@@ -307,31 +235,5 @@ class _WeatherScreenState extends State<WeatherScreen> {
         ],
       ),
     );
-  }
-
-  IconData _getWeatherIcon(String description) {
-    if (description.contains('rain')) return Icons.thunderstorm;
-    if (description.contains('cloud')) return Icons.cloud;
-    if (description.contains('clear')) return Icons.wb_sunny;
-    if (description.contains('snow')) return Icons.ac_unit;
-    return Icons.wb_cloudy;
-  }
-
-  String _getFarmingAdvice() {
-    if (_currentWeather!.rainChance > 70) {
-      return 'Heavy rain expected. Postpone fertilizer application.';
-    } else if (_currentWeather!.temperature > 35) {
-      return 'Very hot. Water crops early morning or evening.';
-    } else if (_currentWeather!.humidity < 30) {
-      return 'Low humidity. Increase irrigation frequency.';
-    } else {
-      return 'Good weather for farming activities.';
-    }
-  }
-
-  IconData _getAdviceIcon() {
-    if (_currentWeather!.rainChance > 70) return Icons.warning_amber;
-    if (_currentWeather!.temperature > 35) return Icons.local_fire_department;
-    return Icons.check_circle;
   }
 }

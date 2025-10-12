@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import '../../services/firebase_service.dart';
+import 'package:provider/provider.dart';
+import '../../services/local_storage_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/farmer_model.dart';
 import '../../models/land_model.dart';
@@ -113,25 +114,50 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
   }
 
   Widget _buildFarmerSelector() {
+    final storageService = Provider.of<LocalStorageService>(context);
+    final farmers = storageService.getAllFarmers();
+
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.person, color: Color(0xFF2E7D32)),
-        title: Text(
-          _selectedFarmer?.name ?? 'Select a farmer',
-          style: GoogleFonts.nunito(fontSize: 16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: DropdownButton<FarmerModel>(
+          isExpanded: true,
+          hint: const Text('Select a farmer'),
+          value: _selectedFarmer,
+          underline: const SizedBox(),
+          items: farmers.map((farmer) {
+            return DropdownMenuItem(
+              value: farmer,
+              child: Text('${farmer.name} - ${farmer.village}'),
+            );
+          }).toList(),
+          onChanged: (value) {
+            setState(() {
+              _selectedFarmer = value;
+              _selectedLand = null; // Reset land selection
+            });
+          },
         ),
-        trailing: const Icon(Icons.arrow_drop_down),
-        onTap: _selectFarmer,
       ),
     );
   }
 
   Widget _buildLandSelector() {
+    final storageService = Provider.of<LocalStorageService>(context);
+    
     return StreamBuilder<List<LandModel>>(
-      stream: FirebaseService().getLandsByFarmerId(_selectedFarmer!.id),
+      stream: storageService.getLandsByFarmerId(_selectedFarmer!.id),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const CircularProgressIndicator();
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No lands found for this farmer',
+                style: GoogleFonts.nunito(color: Colors.grey[600]),
+              ),
+            ),
+          );
         }
 
         final lands = snapshot.data!;
@@ -179,18 +205,26 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
           },
         ),
         const SizedBox(height: 16),
-        ListTile(
-          leading: const Icon(Icons.calendar_today),
-          title: Text(
-            _nextDoseDate == null
-                ? 'Select next dose date (optional)'
-                : 'Next dose: ${DateFormat('dd MMM yyyy').format(_nextDoseDate!)}',
-          ),
-          trailing: const Icon(Icons.arrow_drop_down),
+        InkWell(
           onTap: _selectNextDoseDate,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: BorderSide(color: Colors.grey[300]!),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today),
+                const SizedBox(width: 16),
+                Text(
+                  _nextDoseDate == null
+                      ? 'Select next dose date (optional)'
+                      : 'Next dose: ${DateFormat('dd MMM yyyy').format(_nextDoseDate!)}',
+                  style: GoogleFonts.nunito(),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -300,20 +334,6 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
     );
   }
 
-  Future<void> _selectFarmer() async {
-    // For demo, create mock farmer selection
-    // In production, fetch from Firebase
-    final mockFarmer = FarmerModel(
-      id: 'farmer1',
-      name: 'Ramesh Patil',
-      village: 'Pune',
-      phoneNumber: '9876543210',
-      registrationDate: DateTime.now(),
-    );
-
-    setState(() => _selectedFarmer = mockFarmer);
-  }
-
   Future<void> _selectNextDoseDate() async {
     final date = await showDatePicker(
       context: context,
@@ -336,29 +356,31 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add Fertilizer'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Fertilizer Name'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: quantityController,
-              decoration: const InputDecoration(labelText: 'Quantity'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: unit,
-              decoration: const InputDecoration(labelText: 'Unit'),
-              items: ['kg', 'gm', 'ltr', 'ml']
-                  .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                  .toList(),
-              onChanged: (value) => unit = value!,
-            ),
-          ],
+        content: StatefulBuilder(
+          builder: (context, setDialogState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Fertilizer Name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: quantityController,
+                decoration: const InputDecoration(labelText: 'Quantity'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: unit,
+                decoration: const InputDecoration(labelText: 'Unit'),
+                items: ['kg', 'gm', 'ltr', 'ml']
+                    .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                    .toList(),
+                onChanged: (value) => setDialogState(() => unit = value!),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -398,6 +420,8 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final storageService = Provider.of<LocalStorageService>(context, listen: false);
+      
       final dose = DoseModel(
         id: '',
         farmerId: _selectedFarmer!.id,
@@ -411,7 +435,7 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       );
 
-      await FirebaseService().addDose(dose);
+      await storageService.addDose(dose);
 
       // Send notification
       if (_nextDoseDate != null) {
@@ -424,7 +448,10 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dose added successfully!')),
+          const SnackBar(
+            content: Text('Dose added successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context);
       }

@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../services/firebase_service.dart';
+import 'package:provider/provider.dart';
+import '../../services/local_storage_service.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final storageService = Provider.of<LocalStorageService>(context);
+    
     return FutureBuilder<Map<String, dynamic>>(
-      future: FirebaseService().getAnalytics(),
+      future: storageService.getAnalytics(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final analytics = snapshot.data ?? {};
-        final cropCounts =
-            analytics['cropCounts'] as Map<String, int>? ?? {};
+        final cropCounts = analytics['cropCounts'] as Map<String, int>? ?? {};
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
