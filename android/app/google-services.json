@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "259424420089",
+    "project_id": "skp-farming",
+    "storage_bucket": "skp-farming.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259424420089:android:f149777aefff3c6a116228",
+        "android_client_info": {
+          "package_name": "com.example.skp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8l4D8AmDNqlEI_Uxe0tF1SyueyOei_CQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

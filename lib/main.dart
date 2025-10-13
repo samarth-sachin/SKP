@@ -6,9 +6,23 @@ import 'services/local_storage_service.dart';
 import 'screens/farmer/farmer_home_screen.dart';
 import 'screens/farmer/farmer_registration_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('🔥🔥🔥 FIREBASE CONNECTED SUCCESSFULLY! 🔥🔥🔥');
+    print('Firebase App Name: ${Firebase.app().name}');
+    print('Firebase Options: ${Firebase.app().options.projectId}');
+  } catch (e) {
+    print('❌❌❌ FIREBASE ERROR: $e ❌❌❌');
+  }
+
   runApp(const SKPSmartFarmApp());
 }
 
@@ -61,7 +75,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
