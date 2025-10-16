@@ -6,23 +6,10 @@ import 'services/local_storage_service.dart';
 import 'screens/farmer/farmer_home_screen.dart';
 import 'screens/farmer/farmer_registration_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
-import 'firebase_options.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'screens/admin/admin_login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    print('🔥🔥🔥 FIREBASE CONNECTED SUCCESSFULLY! 🔥🔥🔥');
-    print('Firebase App Name: ${Firebase.app().name}');
-    print('Firebase Options: ${Firebase.app().options.projectId}');
-  } catch (e) {
-    print('❌❌❌ FIREBASE ERROR: $e ❌❌❌');
-  }
-
   runApp(const SKPSmartFarmApp());
 }
 
@@ -68,6 +55,7 @@ class SKPSmartFarmApp extends StatelessWidget {
   }
 }
 
+// Enhanced Splash Screen with Beautiful Green Background
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -75,25 +63,42 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<Offset> _textSlideAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
+    
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.6, curve: Curves.easeIn)),
+    );
+    
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.2, 0.8, curve: Curves.elasticOut)),
+    );
+    
+    _textSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 1.0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.4, 1.0, curve: Curves.easeOut)),
+    );
+
     _controller.forward();
-    _checkUserStatus();
+    _navigateToNext();
   }
 
-  Future<void> _checkUserStatus() async {
-    await Future.delayed(const Duration(seconds: 3));
+  Future<void> _navigateToNext() async {
+    await Future.delayed(const Duration(seconds: 4));
+    
     final prefs = await SharedPreferences.getInstance();
     final isRegistered = prefs.getBool('isRegistered') ?? false;
     final isAdmin = prefs.getBool('isAdmin') ?? false;
@@ -122,62 +127,202 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF2E7D32), Color(0xFFA5D6A7)],
+            colors: [
+              Color(0xFF1B5E20), // Dark green
+              Color(0xFF2E7D32), // Medium green
+              Color(0xFF388E3C), // Light green
+            ],
           ),
         ),
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+        child: Stack(
+          children: [
+            // Enhanced Farming field pattern overlay
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.2,
+                child: CustomPaint(
+                  painter: FarmingFieldPainter(),
+                ),
+              ),
+            ),
+            
+            // Animated floating particles
+            Positioned.fill(
+              child: CustomPaint(
+                painter: FloatingParticlesPainter(),
+              ),
+            ),
+
+            // Main Content
+            Center(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Enhanced Animated Logo Container
+                      Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 40,
+                              spreadRadius: 5,
+                              offset: const Offset(0, 15),
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFF1B5E20).withOpacity(0.3),
+                              blurRadius: 20,
+                              spreadRadius: 10,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.8),
+                            width: 3,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: Padding(
+                            padding: const EdgeInsets.all(15),
+                            child: Image.asset(
+                              'assets/images/skp_logo.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.agriculture,
+                                        size: 70,
+                                        color: Colors.white.withOpacity(0.9),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        'SKP',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 60),
+                      
+                      // Enhanced Animated Welcome Text
+                      SlideTransition(
+                        position: _textSlideAnimation,
+                        child: Column(
+                          children: [
+                            Text(
+                              'सुस्वागतम्',
+                              style: GoogleFonts.notoSansDevanagari(
+                                fontSize: 52,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 2,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.6),
+                                    offset: const Offset(0, 4),
+                                    blurRadius: 15,
+                                  ),
+                                  Shadow(
+                                    color: const Color(0xFF1B5E20).withOpacity(0.4),
+                                    offset: const Offset(0, 0),
+                                    blurRadius: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Welcome',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withOpacity(0.9),
+                                letterSpacing: 1,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.5),
+                                    offset: const Offset(0, 2),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 100),
+                      
+                      // Loading Indicator
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white.withOpacity(0.8),
+                          ),
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Version Text
+                      Text(
+                        'अॅप आवृत्ती 1.9.5',
+                        style: GoogleFonts.notoSansDevanagari(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w500,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.5),
+                              offset: const Offset(0, 2),
+                              blurRadius: 5,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.agriculture,
-                      size: 60,
-                      color: Color(0xFF2E7D32),
-                    ),
-                  ),
                 ),
-                const SizedBox(height: 30),
-                Text(
-                  'SKP SmartFarm',
-                  style: GoogleFonts.poppins(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Farming Simplified',
-                  style: GoogleFonts.nunito(
-                    fontSize: 18,
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -190,80 +335,307 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
+// Enhanced Farming Field Painter
+class FarmingFieldPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.08)
+      ..style = PaintingStyle.fill;
+
+    final strokePaint = Paint()
+      ..color = Colors.white.withOpacity(0.05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    // Draw enhanced grass/crop patterns
+    for (int i = 0; i < 80; i++) {
+      final x = (i * 20.0) % size.width;
+      final y = size.height - (i * 30.0) % size.height;
+      
+      // Draw grass blades with variation
+      final path = Path();
+      path.moveTo(x, y);
+      path.quadraticBezierTo(x + 2 + (i % 3), y - 12 - (i % 8), x + 5 + (i % 2), y);
+      path.moveTo(x + 2, y);
+      path.quadraticBezierTo(x + 5, y - 10 - (i % 6), x + 8, y);
+      canvas.drawPath(path, paint);
+    }
+    
+    // Draw crop rows pattern with curves
+    for (int i = 0; i < 12; i++) {
+      final y = size.height * 0.5 + (i * 35);
+      final path = Path();
+      path.moveTo(0, y);
+      for (int j = 0; j < size.width; j += 40) {
+        path.quadraticBezierTo(
+          j + 20, 
+          y + 10 * (j % 3 == 0 ? 1 : -1), 
+          j + 40, 
+          y
+        );
+      }
+      canvas.drawPath(path, strokePaint);
+    }
+
+    // Draw sun/moon in corner
+    final sunPaint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(size.width * 0.85, size.height * 0.15), 40, sunPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Floating Particles Painter for background animation
+class FloatingParticlesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+
+    // Draw floating particles
+    for (int i = 0; i < 15; i++) {
+      final x = (DateTime.now().millisecondsSinceEpoch / 50 + i * 100) % size.width;
+      final y = (DateTime.now().millisecondsSinceEpoch / 80 + i * 80) % size.height;
+      final radius = 1 + (i % 3).toDouble();
+      
+      canvas.drawCircle(Offset(x, y), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// Enhanced Role Selection Screen with Green Background
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF2E7D32), Color(0xFFA5D6A7)],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Welcome to\nSKP SmartFarm',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Enhanced Top Header with Gradient
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1B5E20), // Dark green
+                    Color(0xFF2E7D32), // Medium green
+                    Color(0xFF388E3C), // Light green
+                  ],
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(40),
+                  bottomRight: Radius.circular(40),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 15,
+                    offset: Offset(0, 8),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Farming Simplified',
-                  style: GoogleFonts.nunito(
-                    fontSize: 18,
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-                const SizedBox(height: 60),
-                _buildRoleCard(
-                  context,
-                  icon: Icons.person,
-                  title: 'Farmer / किसान',
-                  subtitle: 'Get fertilizer updates',
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FarmerRegistrationScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-                _buildRoleCard(
-                  context,
-                  icon: Icons.admin_panel_settings,
-                  title: 'Shop Owner / Admin',
-                  subtitle: 'Manage farmers & doses',
-                  onTap: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('isAdmin', true);
-                    if (context.mounted) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AdminDashboardScreen(),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  
+                  // Enhanced Logo
+                  Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 25,
+                          offset: const Offset(0, 10),
                         ),
-                      );
-                    }
-                  },
-                ),
-              ],
+                        BoxShadow(
+                          color: const Color(0xFF1B5E20).withOpacity(0.2),
+                          blurRadius: 15,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.8),
+                        width: 3,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset(
+                          'assets/images/skp_logo.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.agriculture, 
+                                  size: 60, 
+                                  color: Colors.white
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  Text(
+                    'SKP बळीराजा',
+                    style: GoogleFonts.notoSansDevanagari(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 3),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'शेतकऱ्यांसाठी खत व्यवस्थापन',
+                    style: GoogleFonts.notoSansDevanagari(
+                      fontSize: 16,
+                      color: Colors.white.withOpacity(0.95),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+
+            const SizedBox(height: 40),
+
+            // Role Selection
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'तुम्ही कोण आहात?',
+                      style: GoogleFonts.notoSansDevanagari(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Who are you?',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Farmer Card
+                    _buildRoleCard(
+                      context,
+                      icon: Icons.agriculture,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
+                      ),
+                      titleMarathi: 'शेतकरी',
+                      titleEnglish: 'Farmer',
+                      subtitleMarathi: 'खत माहिती आणि सूचना मिळवा',
+                      subtitleEnglish: 'Get fertilizer info & notifications',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FarmerRegistrationScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Admin Card
+                    _buildRoleCard(
+                      context,
+                      icon: Icons.admin_panel_settings,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
+                      ),
+                      titleMarathi: 'दुकानदार / प्रशासक',
+                      titleEnglish: 'Shop Owner / Admin',
+                      subtitleMarathi: 'शेतकरी आणि खत व्यवस्थापन',
+                      subtitleEnglish: 'Manage farmers & fertilizers',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminLoginScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Enhanced Footer
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text(
+                    'महाराष्ट्र शासन प्रेरित',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.notoSansDevanagari(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Inspired by Maha Govt Apps',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -272,8 +644,11 @@ class RoleSelectionScreen extends StatelessWidget {
   Widget _buildRoleCard(
     BuildContext context, {
     required IconData icon,
-    required String title,
-    required String subtitle,
+    required Gradient gradient,
+    required String titleMarathi,
+    required String titleEnglish,
+    required String subtitleMarathi,
+    required String subtitleEnglish,
     required VoidCallback onTap,
   }) {
     return Material(
@@ -282,7 +657,7 @@ class RoleSelectionScreen extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -290,45 +665,90 @@ class RoleSelectionScreen extends StatelessWidget {
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
                 blurRadius: 15,
-                offset: const Offset(0, 5),
+                offset: const Offset(0, 6),
               ),
             ],
+            border: Border.all(
+              color: Colors.grey.withOpacity(0.2),
+              width: 1,
+            ),
           ),
           child: Row(
             children: [
+              // Icon Container
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(15),
+                  gradient: gradient,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradient.colors.first.withOpacity(0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, size: 40, color: const Color(0xFF2E7D32)),
+                child: Icon(icon, size: 32, color: Colors.white),
               ),
-              const SizedBox(width: 20),
+              
+              const SizedBox(width: 16),
+              
+              // Text Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
-                      style: GoogleFonts.nunito(
-                        fontSize: 20,
+                      titleMarathi,
+                      style: GoogleFonts.notoSansDevanagari(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
+                    Text(
+                      titleEnglish,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
-                      subtitle,
-                      style: GoogleFonts.nunito(
-                        fontSize: 14,
+                      subtitleMarathi,
+                      style: GoogleFonts.notoSansDevanagari(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    Text(
+                      subtitleEnglish,
+                      style: GoogleFonts.poppins(
+                        fontSize: 10,
                         color: Colors.grey[600],
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, color: Color(0xFF2E7D32)),
+              
+              const SizedBox(width: 8),
+              
+              // Arrow Icon
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: const Color(0xFF2E7D32),
+                  size: 18,
+                ),
+              ),
             ],
           ),
         ),
