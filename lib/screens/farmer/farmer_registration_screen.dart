@@ -142,7 +142,7 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
                 label: 'आधार कार्ड नंबर / Aadhaar Number',
                 icon: Icons.credit_card,
                 keyboardType: TextInputType.number,
-                maxLength: 12,
+                maxLength: 14,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   AadhaarInputFormatter(),
