@@ -31,6 +31,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
+        automaticallyImplyLeading: false, // This removes the back button
         actions: [
           if (notifications.isNotEmpty)
             IconButton(

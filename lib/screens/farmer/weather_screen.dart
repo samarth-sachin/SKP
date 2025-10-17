@@ -1,154 +1,335 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class WeatherScreen extends StatelessWidget {
+class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
 
   @override
+  State<WeatherScreen> createState() => _WeatherScreenState();
+}
+
+class _WeatherScreenState extends State<WeatherScreen> {
+  Map<String, dynamic>? _weatherData;
+  bool _isLoading = true;
+  String _error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchWeatherData();
+  }
+
+  Future<void> _fetchWeatherData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = '';
+      });
+
+      const apiKey = '2873b07f90164f928c3143103251710'; 
+      const city = 'Pune';
+      // ✅ CORRECT URL for WeatherAPI.com
+      const url = 'http://api.weatherapi.com/v1/current.json?key=$apiKey&q=$city&aqi=no';
+
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        setState(() {
+          _weatherData = json.decode(response.body);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'हवामान माहिती लोड करता आली नाही';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'इंटरनेट कनेक्शन तपासा';
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getWeatherIcon(String condition) {
+    condition = condition.toLowerCase();
+    if (condition.contains('sunny') || condition.contains('clear')) {
+      return '☀️';
+    } else if (condition.contains('cloud')) {
+      return '☁️';
+    } else if (condition.contains('rain')) {
+      return '🌧️';
+    } else if (condition.contains('snow')) {
+      return '❄️';
+    } else if (condition.contains('thunder')) {
+      return '⛈️';
+    } else if (condition.contains('mist') || condition.contains('fog')) {
+      return '🌫️';
+    }
+    return '🌤️';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Mock weather data for demo
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildMainWeatherCard(),
-              const SizedBox(height: 20),
-              Text(
-                'Weather Details / हवामान तपशील',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: _isLoading
+          ? _buildLoading()
+          : _error.isNotEmpty
+              ? _buildError()
+              : _buildWeatherContent(),
+    );
+  }
+
+  Widget _buildLoading() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'हवामान माहिती लोड होत आहे...',
+            style: GoogleFonts.notoSansDevanagari(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, size: 80, color: Colors.grey),
+            const SizedBox(height: 20),
+            Text(
+              _error,
+              style: GoogleFonts.notoSansDevanagari(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: _fetchWeatherData,
+              icon: const Icon(Icons.refresh),
+              label: Text(
+                'पुन्हा प्रयत्न करा',
+                style: GoogleFonts.notoSansDevanagari(
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 12),
-              _buildWeatherDetails(),
-              const SizedBox(height: 20),
-              _buildFarmingAdvice(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMainWeatherCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(30),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF2E7D32),
-            Color(0xFFA5D6A7),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.location_on, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Pune, Maharashtra',
-                style: GoogleFonts.nunito(
-                  fontSize: 18,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          const Icon(
-            Icons.wb_sunny,
-            size: 100,
-            color: Colors.white,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            '28°C',
-            style: GoogleFonts.poppins(
-              fontSize: 64,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'PARTLY CLOUDY',
-            style: GoogleFonts.nunito(
-              fontSize: 18,
-              color: Colors.white.withOpacity(0.9),
-              letterSpacing: 1.5,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildWeatherDetails() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildDetailCard(
-                icon: Icons.water_drop,
-                label: 'Humidity\nआर्द्रता',
-                value: '65%',
-                color: Colors.blue,
+  Widget _buildWeatherContent() {
+    final current = _weatherData!['current'];
+    final location = _weatherData!['location'];
+    final condition = current['condition'];
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 50, 16, 30),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDetailCard(
-                icon: Icons.air,
-                label: 'Wind Speed\nवारा',
-                value: '12 km/h',
-                color: Colors.grey,
-              ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${location['name']}, ${location['region']}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  _getWeatherIcon(condition['text']),
+                  style: const TextStyle(fontSize: 100),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  '${current['temp_c'].round()}°C',
+                  style: GoogleFonts.poppins(
+                    fontSize: 72,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  condition['text'].toString().toUpperCase(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    color: Colors.white.withOpacity(0.95),
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Feels like ${current['feelslike_c'].round()}°C',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildDetailCard(
-                icon: Icons.cloud,
-                label: 'Rain Chance\nपाऊस',
-                value: '20%',
-                color: Colors.indigo,
-              ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Weather Details
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'हवामान तपशील',
+                  style: GoogleFonts.notoSansDevanagari(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Weather Details',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // First row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDetailCard(
+                        icon: Icons.water_drop,
+                        label: 'आर्द्रता\nHumidity',
+                        value: '${current['humidity']}%',
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDetailCard(
+                        icon: Icons.air,
+                        label: 'वारा\nWind',
+                        value: '${current['wind_kph']} km/h',
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Second row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDetailCard(
+                        icon: Icons.compress,
+                        label: 'दबाव\nPressure',
+                        value: '${current['pressure_mb']} mb',
+                        color: Colors.purple,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDetailCard(
+                        icon: Icons.visibility,
+                        label: 'दृश्यता\nVisibility',
+                        value: '${current['vis_km']} km',
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Third row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDetailCard(
+                        icon: Icons.wb_sunny,
+                        label: 'UV इंडेक्स\nUV Index',
+                        value: '${current['uv']}',
+                        color: Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDetailCard(
+                        icon: Icons.water,
+                        label: 'पाऊस\nPrecip',
+                        value: '${current['precip_mm']} mm',
+                        color: Colors.indigo,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Farming Advice
+                _buildFarmingAdvice(condition['text']),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDetailCard(
-                icon: Icons.thermostat,
-                label: 'Feels Like\nजाणवतो',
-                value: '30°C',
-                color: Colors.orange,
-              ),
-            ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -159,10 +340,10 @@ class WeatherScreen extends StatelessWidget {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -173,21 +354,21 @@ class WeatherScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, size: 40, color: color),
-          const SizedBox(height: 12),
+          Icon(icon, size: 32, color: color),
+          const SizedBox(height: 10),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: GoogleFonts.nunito(
-              fontSize: 12,
+            style: GoogleFonts.notoSansDevanagari(
+              fontSize: 11,
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             value,
             style: GoogleFonts.poppins(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -197,36 +378,88 @@ class WeatherScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFarmingAdvice() {
+  Widget _buildFarmingAdvice(String weatherCondition) {
+    String advice = '';
+    String marathiAdvice = '';
+    IconData adviceIcon = Icons.agriculture;
+    Color adviceColor = Colors.green;
+
+    weatherCondition = weatherCondition.toLowerCase();
+
+    if (weatherCondition.contains('sunny') || weatherCondition.contains('clear')) {
+      advice = 'Perfect weather for farming! Good day for irrigation and fieldwork.';
+      marathiAdvice = 'उत्तम हवामान! सिंचन आणि शेतकामासाठी चांगला दिवस.';
+      adviceIcon = Icons.wb_sunny;
+      adviceColor = Colors.amber;
+    } else if (weatherCondition.contains('rain')) {
+      advice = 'Rainy weather. Good for soil moisture but avoid chemical spraying.';
+      marathiAdvice = 'पावसाळी हवामान. मातीतील ओलावा चांगला पण रासायनिक फवारणी टाळा.';
+      adviceIcon = Icons.umbrella;
+      adviceColor = Colors.blue;
+    } else if (weatherCondition.contains('cloud')) {
+      advice = 'Cloudy weather. Suitable for planting and transplanting.';
+      marathiAdvice = 'ढगाळ हवामान. लागवड आणि रोपांसाठी योग्य.';
+      adviceIcon = Icons.cloud;
+      adviceColor = Colors.grey;
+    } else {
+      advice = 'Normal farming activities can be carried out today.';
+      marathiAdvice = 'सामान्य शेती कामे आज करू शकता.';
+    }
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.amber[50],
+        gradient: LinearGradient(
+          colors: [adviceColor.withOpacity(0.1), adviceColor.withOpacity(0.05)],
+        ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.amber[200]!),
+        border: Border.all(color: adviceColor.withOpacity(0.3), width: 2),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.check_circle, size: 40, color: Colors.amber[800]),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: adviceColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(adviceIcon, size: 32, color: adviceColor),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Farming Advice / सल्ला',
-                  style: GoogleFonts.poppins(
+                  'शेती सल्ला',
+                  style: GoogleFonts.notoSansDevanagari(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.amber[900],
+                    color: adviceColor.withOpacity(0.9),
+                  ),
+                ),
+                Text(
+                  'Farming Advice',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  marathiAdvice,
+                  style: GoogleFonts.notoSansDevanagari(
+                    fontSize: 13,
+                    color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Good weather for farming activities today!',
-                  style: GoogleFonts.nunito(
-                    fontSize: 14,
-                    color: Colors.amber[900],
+                  advice,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[700],
                   ),
                 ),
               ],

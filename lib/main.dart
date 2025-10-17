@@ -303,7 +303,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       
                       // Version Text
                       Text(
-                        'अॅप आवृत्ती 1.9.5',
+                        ' ',
                         style: GoogleFonts.notoSansDevanagari(
                           fontSize: 14,
                           color: Colors.white.withOpacity(0.9),
@@ -420,222 +420,191 @@ class RoleSelectionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Enhanced Top Header with Gradient
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF1B5E20), // Dark green
-                    Color(0xFF2E7D32), // Medium green
-                    Color(0xFF388E3C), // Light green
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(40),
-                  bottomRight: Radius.circular(40),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 15,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  
-                  // Enhanced Logo
-                  Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 25,
-                          offset: const Offset(0, 10),
-                        ),
-                        BoxShadow(
-                          color: const Color(0xFF1B5E20).withOpacity(0.2),
-                          blurRadius: 15,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.8),
-                        width: 3,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Image.asset(
-                          'assets/images/skp_logo.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.agriculture, 
-                                  size: 60, 
-                                  color: Colors.white
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  Text(
-                    'SKP बळीराजा',
-                    style: GoogleFonts.notoSansDevanagari(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          offset: const Offset(0, 3),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'शेतकऱ्यांसाठी खत व्यवस्थापन',
-                    style: GoogleFonts.notoSansDevanagari(
-                      fontSize: 16,
-                      color: Colors.white.withOpacity(0.95),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+        child: SingleChildScrollView(  // ✅ Make it scrollable
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height - 
+                         MediaQuery.of(context).padding.top - 
+                         MediaQuery.of(context).padding.bottom,
             ),
-
-            const SizedBox(height: 40),
-
-            // Role Selection
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'तुम्ही कोण आहात?',
-                      style: GoogleFonts.notoSansDevanagari(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+            child: Column(
+              children: [
+                // Top Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Who are you?',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(40),
+                      bottomRight: Radius.circular(40),
                     ),
-                    const SizedBox(height: 32),
-
-                    // Farmer Card
-                    _buildRoleCard(
-                      context,
-                      icon: Icons.agriculture,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
-                      ),
-                      titleMarathi: 'शेतकरी',
-                      titleEnglish: 'Farmer',
-                      subtitleMarathi: 'खत माहिती आणि सूचना मिळवा',
-                      subtitleEnglish: 'Get fertilizer info & notifications',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const FarmerRegistrationScreen(),
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      
+                      // Logo
+                      Container(
+                        width: 100,  // ✅ Reduced size for large fonts
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Image.asset(
+                              'assets/images/skp_logo.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                                    ),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(Icons.agriculture, size: 40, color: Colors.white),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Admin Card
-                    _buildRoleCard(
-                      context,
-                      icon: Icons.admin_panel_settings,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
+                        ),
                       ),
-                      titleMarathi: 'दुकानदार / प्रशासक',
-                      titleEnglish: 'Shop Owner / Admin',
-                      subtitleMarathi: 'शेतकरी आणि खत व्यवस्थापन',
-                      subtitleEnglish: 'Manage farmers & fertilizers',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminLoginScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                      
+                      const SizedBox(height: 16),
+                      
+                      // App name - Fixed font size
+                      Text(
+                        'SKP बळीराजा',
+                        textScaleFactor: 1.0,  // ✅ Ignore system font scaling
+                        style: GoogleFonts.notoSansDevanagari(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'शेतकऱ्यांसाठी खत व्यवस्थापन',
+                        textScaleFactor: 1.0,  // ✅ Ignore system font scaling
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.notoSansDevanagari(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.95),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
 
-            // Enhanced Footer
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Text(
-                    'महाराष्ट्र शासन प्रेरित',
+                const SizedBox(height: 32),
+
+                // Role Selection - Flexible space
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'तुम्ही कोण आहात?',
+                        textScaleFactor: 1.0,  // ✅ Fixed font size
+                        style: GoogleFonts.notoSansDevanagari(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Who are you?',
+                        textScaleFactor: 1.0,  // ✅ Fixed font size
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Farmer Card
+                      _buildRoleCard(
+                        context,
+                        icon: Icons.person,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
+                        ),
+                        titleMarathi: 'शेतकरी',
+                        titleEnglish: 'Farmer',
+                        subtitleMarathi: 'खत माहिती आणि सूचना मिळवा',
+                        subtitleEnglish: 'Get fertilizer info & notifications',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FarmerRegistrationScreen(),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Admin Card
+                      _buildRoleCard(
+                        context,
+                        icon: Icons.admin_panel_settings,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
+                        ),
+                        titleMarathi: 'दुकानदार / प्रशासक',
+                        titleEnglish: 'Shop Owner / Admin',
+                        subtitleMarathi: 'शेतकरी आणि खत व्यवस्थापन',
+                        subtitleEnglish: 'Manage farmers & fertilizers',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminLoginScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Footer
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    ' ',
                     textAlign: TextAlign.center,
+                    textScaleFactor: 1.0,  // ✅ Fixed font size
                     style: GoogleFonts.notoSansDevanagari(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Inspired by Maha Govt Apps',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: Colors.grey[600],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -655,99 +624,78 @@ class RoleSelectionScreen extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),  // ✅ Reduced padding
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 15,
-                offset: const Offset(0, 6),
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(
-              color: Colors.grey.withOpacity(0.2),
-              width: 1,
-            ),
           ),
           child: Row(
             children: [
-              // Icon Container
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),  // ✅ Reduced padding
                 decoration: BoxDecoration(
                   gradient: gradient,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: gradient.colors.first.withOpacity(0.4),
-                      blurRadius: 10,
+                      color: gradient.colors.first.withOpacity(0.3),
+                      blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: Icon(icon, size: 32, color: Colors.white),
+                child: Icon(icon, size: 28, color: Colors.white),  // ✅ Reduced icon size
               ),
-              
-              const SizedBox(width: 16),
-              
-              // Text Content
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       titleMarathi,
+                      textScaleFactor: 1.0,  // ✅ Fixed font size
                       style: GoogleFonts.notoSansDevanagari(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
                     Text(
                       titleEnglish,
+                      textScaleFactor: 1.0,  // ✅ Fixed font size
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitleMarathi,
+                      textScaleFactor: 1.0,  // ✅ Fixed font size
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.notoSansDevanagari(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: Colors.grey[700],
-                      ),
-                    ),
-                    Text(
-                      subtitleEnglish,
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        color: Colors.grey[600],
                       ),
                     ),
                   ],
                 ),
               ),
-              
-              const SizedBox(width: 8),
-              
-              // Arrow Icon
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: const Color(0xFF2E7D32),
-                  size: 18,
-                ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Color(0xFF2E7D32),
+                size: 18,
               ),
             ],
           ),
