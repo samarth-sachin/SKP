@@ -490,7 +490,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       
                       // App name - Fixed font size
                       Text(
-                        'SKP बळीराजा',
+                        'शेतसखा',
                         textScaleFactor: 1.0,  // ✅ Ignore system font scaling
                         style: GoogleFonts.notoSansDevanagari(
                           fontSize: 24,

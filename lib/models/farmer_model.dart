@@ -14,30 +14,27 @@ class FarmerModel {
     required this.phoneNumber,
     this.alternatePhone,
     required this.registrationDate,
-    this.landIds = const [],
+    required this.landIds,
   });
 
-  factory FarmerModel.fromJson(Map<String, dynamic> json) {
+  // Add copyWith method
+  FarmerModel copyWith({
+    String? id,
+    String? name,
+    String? village,
+    String? phoneNumber,
+    String? alternatePhone,
+    DateTime? registrationDate,
+    List<String>? landIds,
+  }) {
     return FarmerModel(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      village: json['village'] ?? '',
-      phoneNumber: json['phoneNumber'] ?? '',
-      alternatePhone: json['alternatePhone'],
-      registrationDate: DateTime.parse(json['registrationDate']),
-      landIds: List<String>.from(json['landIds'] ?? []),
+      id: id ?? this.id,
+      name: name ?? this.name,
+      village: village ?? this.village,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      alternatePhone: alternatePhone ?? this.alternatePhone,
+      registrationDate: registrationDate ?? this.registrationDate,
+      landIds: landIds ?? this.landIds,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'village': village,
-      'phoneNumber': phoneNumber,
-      'alternatePhone': alternatePhone,
-      'registrationDate': registrationDate.toIso8601String(),
-      'landIds': landIds,
-    };
   }
 }

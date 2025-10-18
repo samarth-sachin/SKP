@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:geolocator/geolocator.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
@@ -14,6 +15,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
   Map<String, dynamic>? _weatherData;
   bool _isLoading = true;
   String _error = '';
+  String _currentLocation = 'Getting location...';
 
   @override
   void initState() {
@@ -28,30 +30,78 @@ class _WeatherScreenState extends State<WeatherScreen> {
         _error = '';
       });
 
-      const apiKey = '2873b07f90164f928c3143103251710'; 
-      const city = 'Pune';
-      // ✅ CORRECT URL for WeatherAPI.com
-      const url = 'http://api.weatherapi.com/v1/current.json?key=$apiKey&q=$city&aqi=no';
+      // ✅ Step 1: Get current location
+      Position position = await _getCurrentLocation();
+      
+      print('📍 Location: ${position.latitude}, ${position.longitude}');
 
-      final response = await http.get(Uri.parse(url));
+      const apiKey = '2873b07f90164f928c3143103251710';
+      
+      // ✅ Step 2: Use coordinates instead of city name
+      final url = 'https://api.weatherapi.com/v1/current.json?key=$apiKey&q=${position.latitude},${position.longitude}&aqi=no';
+
+      print('🌤️ Fetching weather from: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('📡 Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
+        final data = json.decode(response.body);
         setState(() {
-          _weatherData = json.decode(response.body);
+          _weatherData = data;
+          _currentLocation = '${data['location']['name']}, ${data['location']['region']}';
           _isLoading = false;
         });
+        print('✅ Weather data loaded successfully for $_currentLocation');
       } else {
         setState(() {
-          _error = 'हवामान माहिती लोड करता आली नाही';
+          _error = 'API Error: ${response.statusCode}';
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('❌ Exception: $e');
       setState(() {
-        _error = 'इंटरनेट कनेक्शन तपासा';
+        _error = e.toString().contains('location') 
+            ? 'Location permission denied' 
+            : 'कनेक्शन त्रुटी';
         _isLoading = false;
       });
     }
+  }
+
+  // ✅ Get current GPS location
+  Future<Position> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Location services are disabled. Please enable GPS.');
+    }
+
+    // Check location permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permission denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('Location permissions are permanently denied');
+    }
+
+    // Get current position
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
   String _getWeatherIcon(String condition) {
@@ -60,7 +110,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
       return '☀️';
     } else if (condition.contains('cloud')) {
       return '☁️';
-    } else if (condition.contains('rain')) {
+    } else if (condition.contains('rain') || condition.contains('drizzle')) {
       return '🌧️';
     } else if (condition.contains('snow')) {
       return '❄️';
@@ -94,9 +144,18 @@ class _WeatherScreenState extends State<WeatherScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            'हवामान माहिती लोड होत आहे...',
+            'तुमचे ठिकाण शोधत आहे...',
             style: GoogleFonts.notoSansDevanagari(
               fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Getting your location...',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
               color: Colors.grey[600],
             ),
           ),
@@ -112,30 +171,65 @@ class _WeatherScreenState extends State<WeatherScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.cloud_off, size: 80, color: Colors.grey),
+            Icon(
+              _error.contains('location') || _error.contains('permission')
+                  ? Icons.location_off
+                  : Icons.cloud_off,
+              size: 80,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 20),
             Text(
-              _error,
-              style: GoogleFonts.notoSansDevanagari(
+              _error.contains('location') || _error.contains('permission')
+                  ? 'Location Permission Required'
+                  : 'Connection Error',
+              style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey[700],
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 12),
+            Text(
+              _error.contains('location') || _error.contains('permission')
+                  ? 'कृपया Location permission द्या'
+                  : _error,
+              style: GoogleFonts.notoSansDevanagari(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            if (_error.contains('location') || _error.contains('permission'))
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await Geolocator.openLocationSettings();
+                },
+                icon: const Icon(Icons.settings),
+                label: Text(
+                  'Settings उघडा',
+                  style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D32),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: _fetchWeatherData,
               icon: const Icon(Icons.refresh),
               label: Text(
                 'पुन्हा प्रयत्न करा',
-                style: GoogleFonts.notoSansDevanagari(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
+                backgroundColor: Colors.orange,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -149,6 +243,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
   }
 
   Widget _buildWeatherContent() {
+    if (_weatherData == null) return _buildError();
+
     final current = _weatherData!['current'];
     final location = _weatherData!['location'];
     final condition = current['condition'];
@@ -156,7 +252,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Header
+          // Header with Location
           Container(
             padding: const EdgeInsets.fromLTRB(16, 50, 16, 30),
             decoration: const BoxDecoration(
@@ -172,20 +268,28 @@ class _WeatherScreenState extends State<WeatherScreen> {
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.location_on, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${location['name']}, ${location['region']}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                // Location with GPS icon
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.my_location, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${location['name']}, ${location['region']}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 30),
                 Text(
@@ -250,7 +354,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // First row
                 Row(
                   children: [
                     Expanded(
@@ -274,7 +377,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 ),
                 const SizedBox(height: 12),
                 
-                // Second row
                 Row(
                   children: [
                     Expanded(
@@ -296,34 +398,9 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                
-                // Third row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDetailCard(
-                        icon: Icons.wb_sunny,
-                        label: 'UV इंडेक्स\nUV Index',
-                        value: '${current['uv']}',
-                        color: Colors.amber,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDetailCard(
-                        icon: Icons.water,
-                        label: 'पाऊस\nPrecip',
-                        value: '${current['precip_mm']} mm',
-                        color: Colors.indigo,
-                      ),
-                    ),
-                  ],
-                ),
 
                 const SizedBox(height: 24),
 
-                // Farming Advice
                 _buildFarmingAdvice(condition['text']),
               ],
             ),

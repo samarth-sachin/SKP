@@ -20,6 +20,8 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
   final _doseNumberController = TextEditingController();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
+  final _farmerSearchController = TextEditingController();
+  final _landSearchController = TextEditingController();
 
   FarmerModel? _selectedFarmer;
   LandModel? _selectedLand;
@@ -28,12 +30,66 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
   List<Fertilizer> _fertilizers = [];
 
   bool _isLoading = false;
+  List<FarmerModel> _allFarmers = [];
+  List<FarmerModel> _filteredFarmers = [];
+  List<LandModel> _allLands = [];
+  List<LandModel> _filteredLands = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFarmers();
+    _farmerSearchController.addListener(_filterFarmers);
+    _landSearchController.addListener(_filterLands);
+  }
+
+  void _loadFarmers() {
+    final storageService = Provider.of<LocalStorageService>(context, listen: false);
+    setState(() {
+      _allFarmers = storageService.getAllFarmers();
+      _filteredFarmers = _allFarmers;
+    });
+  }
+
+  void _filterFarmers() {
+    final query = _farmerSearchController.text.toLowerCase();
+    setState(() {
+      _filteredFarmers = _allFarmers.where((farmer) {
+        return farmer.name.toLowerCase().contains(query) ||
+               farmer.village.toLowerCase().contains(query) ||
+               farmer.phoneNumber.contains(query);
+      }).toList();
+    });
+  }
+
+  void _filterLands() {
+    final query = _landSearchController.text.toLowerCase();
+    setState(() {
+      _filteredLands = _allLands.where((land) {
+        return land.landName.toLowerCase().contains(query) ||
+               land.location.toLowerCase().contains(query) ||
+               land.currentCrop.toLowerCase().contains(query);
+      }).toList();
+    });
+  }
+
+  void _loadLandsForFarmer(String farmerId) {
+    final storageService = Provider.of<LocalStorageService>(context, listen: false);
+    final lands = storageService.getLandsByFarmerIdSync(farmerId);
+    setState(() {
+      _allLands = lands;
+      _filteredLands = lands;
+      _landSearchController.clear();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add New Dose'),
+        backgroundColor: Colors.orange[800], // Admin orange theme
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -61,8 +117,8 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('Add Fertilizer'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[300],
-                    foregroundColor: Colors.black87,
+                    backgroundColor: Colors.orange[100],
+                    foregroundColor: Colors.orange[900],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -75,7 +131,7 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _submitDose,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
+                      backgroundColor: Colors.orange[800], // Admin orange theme
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -87,6 +143,7 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
                             style: GoogleFonts.poppins(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
                   ),
@@ -107,82 +164,256 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
         style: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: const Color(0xFF2E7D32),
+          color: Colors.orange[800], // Admin orange theme
         ),
       ),
     );
   }
 
   Widget _buildFarmerSelector() {
-    final storageService = Provider.of<LocalStorageService>(context);
-    final farmers = storageService.getAllFarmers();
-
     return Card(
+      elevation: 4,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: DropdownButton<FarmerModel>(
-          isExpanded: true,
-          hint: const Text('Select a farmer'),
-          value: _selectedFarmer,
-          underline: const SizedBox(),
-          items: farmers.map((farmer) {
-            return DropdownMenuItem(
-              value: farmer,
-              child: Text('${farmer.name} - ${farmer.village}'),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              _selectedFarmer = value;
-              _selectedLand = null; // Reset land selection
-            });
-          },
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Search Bar
+            TextField(
+              controller: _farmerSearchController,
+              decoration: InputDecoration(
+                hintText: 'Search farmers by name, village or phone...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Farmers List
+            if (_filteredFarmers.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No farmers found',
+                  style: GoogleFonts.nunito(color: Colors.grey[600]),
+                ),
+              )
+            else
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  itemCount: _filteredFarmers.length,
+                  itemBuilder: (context, index) {
+                    final farmer = _filteredFarmers[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.orange[100],
+                        child: Icon(Icons.person, color: Colors.orange[800]),
+                      ),
+                      title: Text(
+                        farmer.name,
+                        style: GoogleFonts.poppins(
+                          fontWeight: _selectedFarmer?.id == farmer.id 
+                              ? FontWeight.bold 
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${farmer.village} • ${farmer.phoneNumber}',
+                        style: GoogleFonts.nunito(fontSize: 12),
+                      ),
+                      trailing: _selectedFarmer?.id == farmer.id
+                          ? Icon(Icons.check_circle, color: Colors.orange[800])
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedFarmer = farmer;
+                          _selectedLand = null;
+                          _loadLandsForFarmer(farmer.id);
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            if (_selectedFarmer != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.orange[800], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selected Farmer: ${_selectedFarmer!.name}',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[900],
+                            ),
+                          ),
+                          Text(
+                            '${_selectedFarmer!.village} • ${_selectedFarmer!.phoneNumber}',
+                            style: GoogleFonts.nunito(
+                              fontSize: 12,
+                              color: Colors.orange[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.clear, color: Colors.orange[800]),
+                      onPressed: () {
+                        setState(() {
+                          _selectedFarmer = null;
+                          _selectedLand = null;
+                          _allLands.clear();
+                          _filteredLands.clear();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
   Widget _buildLandSelector() {
-    final storageService = Provider.of<LocalStorageService>(context);
-    
-    return StreamBuilder<List<LandModel>>(
-      stream: storageService.getLandsByFarmerId(_selectedFarmer!.id),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'No lands found for this farmer',
-                style: GoogleFonts.nunito(color: Colors.grey[600]),
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Search Bar
+            TextField(
+              controller: _landSearchController,
+              decoration: InputDecoration(
+                hintText: 'Search lands by name, location or crop...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
             ),
-          );
-        }
-
-        final lands = snapshot.data!;
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: DropdownButton<LandModel>(
-              isExpanded: true,
-              hint: const Text('Select land'),
-              value: _selectedLand,
-              underline: const SizedBox(),
-              items: lands.map((land) {
-                return DropdownMenuItem(
-                  value: land,
-                  child: Text('${land.landName} - ${land.currentCrop}'),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() => _selectedLand = value);
-              },
-            ),
-          ),
-        );
-      },
+            const SizedBox(height: 12),
+            // Lands List
+            if (_filteredLands.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No lands found for this farmer',
+                  style: GoogleFonts.nunito(color: Colors.grey[600]),
+                ),
+              )
+            else
+              Container(
+                height: 150,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  itemCount: _filteredLands.length,
+                  itemBuilder: (context, index) {
+                    final land = _filteredLands[index];
+                    return ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.landscape, color: Colors.orange[800]),
+                      ),
+                      title: Text(
+                        land.landName,
+                        style: GoogleFonts.poppins(
+                          fontWeight: _selectedLand?.id == land.id 
+                              ? FontWeight.bold 
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${land.location} • ${land.currentCrop} • ${land.areaInAcres} acres',
+                        style: GoogleFonts.nunito(fontSize: 12),
+                      ),
+                      trailing: _selectedLand?.id == land.id
+                          ? Icon(Icons.check_circle, color: Colors.orange[800])
+                          : null,
+                      onTap: () {
+                        setState(() => _selectedLand = land);
+                      },
+                    );
+                  },
+                ),
+              ),
+            if (_selectedLand != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.landscape, color: Colors.orange[800], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Selected Land: ${_selectedLand!.landName}',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[900],
+                            ),
+                          ),
+                          Text(
+                            '${_selectedLand!.location} • ${_selectedLand!.currentCrop}',
+                            style: GoogleFonts.nunito(
+                              fontSize: 12,
+                              color: Colors.orange[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.clear, color: Colors.orange[800]),
+                      onPressed: () {
+                        setState(() => _selectedLand = null);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -191,10 +422,13 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
       children: [
         TextFormField(
           controller: _doseNumberController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Dose Number',
-            prefixIcon: Icon(Icons.numbers),
-            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.numbers, color: Colors.orange[800]),
+            border: const OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.orange[800]!),
+            ),
           ),
           keyboardType: TextInputType.number,
           validator: (value) {
@@ -215,7 +449,7 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today),
+                Icon(Icons.calendar_today, color: Colors.orange[800]),
                 const SizedBox(width: 16),
                 Text(
                   _nextDoseDate == null
@@ -252,12 +486,13 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
         final fert = entry.value;
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
+          color: Colors.orange[50],
           child: ListTile(
-            leading: const Icon(Icons.grass, color: Color(0xFF2E7D32)),
+            leading: Icon(Icons.grass, color: Colors.orange[800]),
             title: Text(fert.name),
             subtitle: Text('${fert.quantity} ${fert.unit}'),
             trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: Icon(Icons.delete, color: Colors.orange[800]),
               onPressed: () {
                 setState(() => _fertilizers.removeAt(index));
               },
@@ -276,13 +511,22 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                Text(
+                  'Payment Type',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[800],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: RadioListTile<String>(
-                        title: const Text('Cash'),
+                        title: Text('Cash', style: GoogleFonts.nunito()),
                         value: 'Cash',
                         groupValue: _paymentType,
+                        activeColor: Colors.orange[800],
                         onChanged: (value) {
                           setState(() => _paymentType = value!);
                         },
@@ -290,9 +534,10 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
                     ),
                     Expanded(
                       child: RadioListTile<String>(
-                        title: const Text('Credit'),
+                        title: Text('Credit', style: GoogleFonts.nunito()),
                         value: 'Credit',
                         groupValue: _paymentType,
+                        activeColor: Colors.orange[800],
                         onChanged: (value) {
                           setState(() => _paymentType = value!);
                         },
@@ -307,10 +552,13 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
         const SizedBox(height: 16),
         TextFormField(
           controller: _amountController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Amount (₹)',
-            prefixIcon: Icon(Icons.currency_rupee),
-            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.currency_rupee, color: Colors.orange[800]),
+            border: const OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.orange[800]!),
+            ),
           ),
           keyboardType: TextInputType.number,
           validator: (value) {
@@ -323,10 +571,13 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
         const SizedBox(height: 16),
         TextFormField(
           controller: _notesController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Notes (optional)',
-            prefixIcon: Icon(Icons.note),
-            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.note, color: Colors.orange[800]),
+            border: const OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.orange[800]!),
+            ),
           ),
           maxLines: 3,
         ),
@@ -340,6 +591,18 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
       initialDate: DateTime.now().add(const Duration(days: 15)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.orange[800]!,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (date != null) {
@@ -347,72 +610,79 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
     }
   }
 
-  Future<void> _addFertilizer() async {
-    final nameController = TextEditingController();
-    final quantityController = TextEditingController();
-    String unit = 'kg';
+ Future<void> _addFertilizer() async {
+  final nameController = TextEditingController();
+  final quantityController = TextEditingController();
+  String unit = 'bag'; // Changed default to 'bag'
 
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Fertilizer'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Fertilizer Name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: quantityController,
-                decoration: const InputDecoration(labelText: 'Quantity'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: unit,
-                decoration: const InputDecoration(labelText: 'Unit'),
-                items: ['kg', 'gm', 'ltr', 'ml']
-                    .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                    .toList(),
-                onChanged: (value) => setDialogState(() => unit = value!),
-              ),
-            ],
-          ),
+  await showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Add Fertilizer', style: GoogleFonts.poppins()),
+      backgroundColor: Colors.orange[50],
+      content: StatefulBuilder(
+        builder: (context, setDialogState) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Fertilizer Name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: quantityController,
+              decoration: const InputDecoration(labelText: 'Quantity'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: unit,
+              decoration: const InputDecoration(labelText: 'Unit'),
+              items: ['bag', 'kg', 'gm', 'ltr', 'ml'] // Added 'bag' as first option
+                  .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                  .toList(),
+              onChanged: (value) => setDialogState(() => unit = value!),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  quantityController.text.isNotEmpty) {
-                setState(() {
-                  _fertilizers.add(Fertilizer(
-                    name: nameController.text,
-                    quantity: double.parse(quantityController.text),
-                    unit: unit,
-                  ));
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: GoogleFonts.nunito()),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (nameController.text.isNotEmpty &&
+                quantityController.text.isNotEmpty) {
+              setState(() {
+                _fertilizers.add(Fertilizer(
+                  name: nameController.text,
+                  quantity: double.parse(quantityController.text),
+                  unit: unit,
+                ));
+              });
+              Navigator.pop(context);
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange[800],
+          ),
+          child: Text('Add', style: GoogleFonts.nunito(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
 
   Future<void> _submitDose() async {
     if (!_formKey.currentState!.validate()) return;
     if (_fertilizers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one fertilizer')),
+        SnackBar(
+          content: const Text('Please add at least one fertilizer'),
+          backgroundColor: Colors.orange[800],
+        ),
       );
       return;
     }
@@ -423,7 +693,7 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
       final storageService = Provider.of<LocalStorageService>(context, listen: false);
       
       final dose = DoseModel(
-        id: '',
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         farmerId: _selectedFarmer!.id,
         landId: _selectedLand!.id,
         doseNumber: int.parse(_doseNumberController.text),
@@ -448,8 +718,8 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Dose added successfully!'),
+          SnackBar(
+            content: const Text('Dose added successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -458,7 +728,10 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -471,6 +744,8 @@ class _AddDoseScreenState extends State<AddDoseScreen> {
     _doseNumberController.dispose();
     _amountController.dispose();
     _notesController.dispose();
+    _farmerSearchController.dispose();
+    _landSearchController.dispose();
     super.dispose();
   }
 }

@@ -14,30 +14,27 @@ class LandModel {
     required this.location,
     required this.currentCrop,
     required this.areaInAcres,
-    this.doseHistory = const [],
+    required this.doseHistory,
   });
 
-  factory LandModel.fromJson(Map<String, dynamic> json) {
+  // Add copyWith method
+  LandModel copyWith({
+    String? id,
+    String? farmerId,
+    String? landName,
+    String? location,
+    String? currentCrop,
+    double? areaInAcres,
+    List<String>? doseHistory,
+  }) {
     return LandModel(
-      id: json['id'] ?? '',
-      farmerId: json['farmerId'] ?? '',
-      landName: json['landName'] ?? '',
-      location: json['location'] ?? '',
-      currentCrop: json['currentCrop'] ?? '',
-      areaInAcres: (json['areaInAcres'] ?? 0).toDouble(),
-      doseHistory: List<String>.from(json['doseHistory'] ?? []),
+      id: id ?? this.id,
+      farmerId: farmerId ?? this.farmerId,
+      landName: landName ?? this.landName,
+      location: location ?? this.location,
+      currentCrop: currentCrop ?? this.currentCrop,
+      areaInAcres: areaInAcres ?? this.areaInAcres,
+      doseHistory: doseHistory ?? this.doseHistory,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'farmerId': farmerId,
-      'landName': landName,
-      'location': location,
-      'currentCrop': currentCrop,
-      'areaInAcres': areaInAcres,
-      'doseHistory': doseHistory,
-    };
   }
 }

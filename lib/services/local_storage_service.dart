@@ -130,6 +130,15 @@ class LocalStorageService extends ChangeNotifier {
     }
   }
 
+  // Get Farmer by ID (Synchronous)
+  FarmerModel? getFarmerByIdSync(String farmerId) {
+    try {
+      return _farmers.firstWhere((f) => f.id == farmerId);
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Search Farmers
   Stream<List<FarmerModel>> searchFarmers(String query) {
     return Stream.value(
@@ -154,15 +163,36 @@ class LocalStorageService extends ChangeNotifier {
       doseHistory: land.doseHistory,
     );
     _lands.add(newLand);
+    
+    // Update farmer's landIds
+    final farmerIndex = _farmers.indexWhere((f) => f.id == land.farmerId);
+    if (farmerIndex != -1) {
+      _farmers[farmerIndex].landIds.add(newId);
+    }
+    
     notifyListeners();
     return newId;
   }
 
-  // Get Lands by Farmer ID
+  // Get Lands by Farmer ID (Stream)
   Stream<List<LandModel>> getLandsByFarmerId(String farmerId) {
     return Stream.value(
       _lands.where((l) => l.farmerId == farmerId).toList()
     );
+  }
+
+  // ✅ Get Lands by Farmer ID (Synchronous)
+  List<LandModel> getLandsByFarmerIdSync(String farmerId) {
+    return _lands.where((l) => l.farmerId == farmerId).toList();
+  }
+
+  // Get Land by ID
+  LandModel? getLandByIdSync(String landId) {
+    try {
+      return _lands.firstWhere((l) => l.id == landId);
+    } catch (e) {
+      return null;
+    }
   }
 
   // Add Dose
@@ -206,11 +236,38 @@ class LocalStorageService extends ChangeNotifier {
     }
   }
 
-  // Get All Doses for Land
+  // Get Latest Dose for Land (Synchronous)
+  DoseModel? getLatestDoseForLandSync(String landId) {
+    try {
+      final landDoses = _doses.where((d) => d.landId == landId).toList();
+      if (landDoses.isEmpty) return null;
+      
+      landDoses.sort((a, b) => b.applicationDate.compareTo(a.applicationDate));
+      return landDoses.first;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get All Doses for Land (Stream)
   Stream<List<DoseModel>> getDosesForLand(String landId) {
     final landDoses = _doses.where((d) => d.landId == landId).toList();
     landDoses.sort((a, b) => b.applicationDate.compareTo(a.applicationDate));
     return Stream.value(landDoses);
+  }
+
+  // Get All Doses for Land (Synchronous)
+  List<DoseModel> getDosesForLandSync(String landId) {
+    final landDoses = _doses.where((d) => d.landId == landId).toList();
+    landDoses.sort((a, b) => b.applicationDate.compareTo(a.applicationDate));
+    return landDoses;
+  }
+
+  // Get All Doses for Farmer (Synchronous)
+  List<DoseModel> getDosesForFarmerSync(String farmerId) {
+    final farmerDoses = _doses.where((d) => d.farmerId == farmerId).toList();
+    farmerDoses.sort((a, b) => b.applicationDate.compareTo(a.applicationDate));
+    return farmerDoses;
   }
 
   // Get Analytics Data
@@ -248,4 +305,46 @@ class LocalStorageService extends ChangeNotifier {
 
   // Get all doses (for admin)
   List<DoseModel> getAllDoses() => _doses;
+
+  // Update Dose Payment Status
+  Future<void> updateDosePaymentStatus(String doseId, bool isPaid) async {
+    final doseIndex = _doses.indexWhere((d) => d.id == doseId);
+    if (doseIndex != -1) {
+      _doses[doseIndex] = DoseModel(
+        id: _doses[doseIndex].id,
+        farmerId: _doses[doseIndex].farmerId,
+        landId: _doses[doseIndex].landId,
+        doseNumber: _doses[doseIndex].doseNumber,
+        applicationDate: _doses[doseIndex].applicationDate,
+        nextDoseDate: _doses[doseIndex].nextDoseDate,
+        fertilizers: _doses[doseIndex].fertilizers,
+        paymentType: _doses[doseIndex].paymentType,
+        amount: _doses[doseIndex].amount,
+        isPaid: isPaid,
+        notes: _doses[doseIndex].notes,
+      );
+      notifyListeners();
+    }
+  }
+
+  // Delete Farmer
+  Future<void> deleteFarmer(String farmerId) async {
+    _farmers.removeWhere((f) => f.id == farmerId);
+    _lands.removeWhere((l) => l.farmerId == farmerId);
+    _doses.removeWhere((d) => d.farmerId == farmerId);
+    notifyListeners();
+  }
+
+  // Delete Land
+  Future<void> deleteLand(String landId) async {
+    _lands.removeWhere((l) => l.id == landId);
+    _doses.removeWhere((d) => d.landId == landId);
+    notifyListeners();
+  }
+
+  // Delete Dose
+  Future<void> deleteDose(String doseId) async {
+    _doses.removeWhere((d) => d.id == doseId);
+    notifyListeners();
+  }
 }

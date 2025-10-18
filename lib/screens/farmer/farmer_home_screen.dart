@@ -177,7 +177,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'बळीराजा',
+                    'शेतसखा',
                     style: GoogleFonts.notoSansDevanagari(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
