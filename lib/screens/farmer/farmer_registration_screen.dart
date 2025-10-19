@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/farmer_model.dart';
+import '../../services/firebase_service.dart';
 import 'farmer_home_screen.dart';
 
 class FarmerRegistrationScreen extends StatefulWidget {
@@ -18,8 +20,116 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
   final _phoneController = TextEditingController();
   final _alternatePhoneController = TextEditingController();
   final _aadhaarController = TextEditingController();
-  
+
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _villageController.dispose();
+    _phoneController.dispose();
+    _alternatePhoneController.dispose();
+    _aadhaarController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _registerFarmer() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final aadhaarNumber = _aadhaarController.text.trim().replaceAll(' ', '');
+
+      // ✅ Check if Aadhaar already exists
+      final existingFarmer = await FirebaseService.getFarmerByAadhaar(aadhaarNumber);
+
+      if (existingFarmer != null) {
+        // ✅ Farmer already registered - Auto login
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('farmerId', existingFarmer.id);
+        await prefs.setBool('isRegistered', true);
+        await prefs.setBool('isAdmin', false);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ स्वागत आहे, ${existingFarmer.name}! तुमची नोंदणी आधीच झाली आहे.',
+              style: GoogleFonts.notoSansDevanagari(),
+            ),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const FarmerHomeScreen()),
+        );
+        return;
+      }
+
+      // ✅ New farmer - Register
+      final farmer = FarmerModel(
+        id: '',
+        name: _nameController.text.trim(),
+        village: _villageController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        alternatePhone: _alternatePhoneController.text.trim().isEmpty
+            ? null
+            : _alternatePhoneController.text.trim(),
+        aadhaarNumber: aadhaarNumber,
+        registrationDate: DateTime.now(),
+        landIds: [],
+      );
+
+      // ✅ Save to Firebase
+      final farmerId = await FirebaseService.registerFarmer(farmer);
+
+      // Save farmer ID locally
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('farmerId', farmerId);
+      await prefs.setBool('isRegistered', true);
+      await prefs.setBool('isAdmin', false);
+
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ नोंदणी यशस्वी! Registration Successful!',
+            style: GoogleFonts.notoSansDevanagari(),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navigate to home
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const FarmerHomeScreen()),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '❌ नोंदणी अयशस्वी: $e',
+            style: GoogleFonts.notoSansDevanagari(),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -27,279 +137,225 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF2E7D32)),
-          onPressed: () => Navigator.pop(context),
+        backgroundColor: const Color(0xFF2E7D32),
+        title: Text(
+          'शेतकरी नोंदणी',
+          style: GoogleFonts.notoSansDevanagari(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'शेतकरी नोंदणी',
-              style: GoogleFonts.notoSansDevanagari(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF2E7D32),
-              ),
-            ),
-            Text(
-              'Farmer Registration',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF2E7D32).withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.person_add,
-                        size: 32,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'स्वागत आहे! 🙏',
-                            style: GoogleFonts.notoSansDevanagari(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            'कृपया आपली माहिती भरा',
-                            style: GoogleFonts.notoSansDevanagari(
-                              fontSize: 13,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Personal Details Section
-              _buildSectionTitle('वैयक्तिक माहिती / Personal Details'),
-              const SizedBox(height: 12),
-              
-              _buildTextField(
-                controller: _nameController,
-                label: 'पूर्ण नाव / Full Name',
-                icon: Icons.person,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'कृपया नाव प्रविष्ट करा';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              _buildTextField(
-                controller: _aadhaarController,
-                label: 'आधार कार्ड नंबर / Aadhaar Number',
-                icon: Icons.credit_card,
-                keyboardType: TextInputType.number,
-                maxLength: 14,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  AadhaarInputFormatter(),
-                ],
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'कृपया आधार नंबर प्रविष्ट करा';
-                  }
-                  final cleanValue = value.replaceAll(' ', '');
-                  if (cleanValue.length != 12) {
-                    return 'आधार नंबर 12 अंकी असावा';
-                  }
-                  if (!_validateAadhaar(cleanValue)) {
-                    return 'अवैध आधार नंबर';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              _buildTextField(
-                controller: _villageController,
-                label: 'गाव / Village',
-                icon: Icons.location_on,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'कृपया गाव प्रविष्ट करा';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Contact Details Section
-              _buildSectionTitle('संपर्क माहिती / Contact Details'),
-              const SizedBox(height: 12),
-
-              _buildTextField(
-                controller: _phoneController,
-                label: 'मोबाईल नंबर / Mobile Number',
-                icon: Icons.phone,
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'कृपया मोबाईल नंबर प्रविष्ट करा';
-                  }
-                  if (value.length != 10) {
-                    return 'मोबाईल नंबर 10 अंकी असावा';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              _buildTextField(
-                controller: _alternatePhoneController,
-                label: 'पर्यायी नंबर / Alternate Number (ऐच्छिक)',
-                icon: Icons.phone_android,
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
-                required: false,
-              ),
-
-              const SizedBox(height: 32),
-
-              // Privacy Note
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.blue[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.privacy_tip, color: Colors.blue[700], size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'आपली माहिती सुरक्षित आहे आणि गोपनीय ठेवली जाईल\nYour information is secure and confidential',
-                        style: GoogleFonts.notoSansDevanagari(
-                          fontSize: 11,
-                          color: Colors.blue[900],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    disabledBackgroundColor: Colors.grey[300],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_add, size: 40, color: Colors.white),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.check_circle, size: 24),
-                            const SizedBox(width: 12),
                             Text(
-                              'नोंदणी पूर्ण करा / Complete Registration',
+                              'नवीन शेतकरी नोंदणी',
                               style: GoogleFonts.notoSansDevanagari(
-                                fontSize: 16,
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'New Farmer Registration',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.9),
                               ),
                             ),
                           ],
                         ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 24),
+
+                // Name field
+                _buildTextField(
+                  controller: _nameController,
+                  label: 'पूर्ण नाव / Full Name *',
+                  icon: Icons.person,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'कृपया नाव प्रविष्ट करा';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Village field
+                _buildTextField(
+                  controller: _villageController,
+                  label: 'गाव / Village *',
+                  icon: Icons.location_on,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'कृपया गाव प्रविष्ट करा';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Phone field
+                _buildTextField(
+                  controller: _phoneController,
+                  label: 'मोबाईल नंबर / Mobile Number *',
+                  icon: Icons.phone,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'कृपया मोबाईल नंबर प्रविष्ट करा';
+                    }
+                    if (value.length != 10) {
+                      return 'मोबाईल नंबर 10 अंकी असावा';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Alternate Phone field (optional)
+                _buildTextField(
+                  controller: _alternatePhoneController,
+                  label: 'पर्यायी नंबर / Alternate Number (Optional)',
+                  icon: Icons.phone_android,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && value.length != 10) {
+                      return 'पर्यायी नंबर 10 अंकी असावा';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // ✅ Aadhaar field - REQUIRED (as per your model)
+                _buildTextField(
+                  controller: _aadhaarController,
+                  label: 'आधार कार्ड नंबर / Aadhaar Number *',
+                  icon: Icons.credit_card,
+                  keyboardType: TextInputType.number,
+                  maxLength: 14,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    AadhaarInputFormatter(),
+                  ],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'कृपया आधार कार्ड नंबर प्रविष्ट करा';
+                    }
+                    final digits = value.replaceAll(' ', '');
+                    if (digits.length != 12) {
+                      return 'आधार कार्ड नंबर 12 अंकी असावा';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 8),
+
+                // Info text
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 20, color: Colors.blue[700]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '* चिन्हाचे सर्व फील्ड भरणे आवश्यक आहे',
+                          style: GoogleFonts.notoSansDevanagari(
+                            fontSize: 12,
+                            color: Colors.blue[900],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Register button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _registerFarmer,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      disabledBackgroundColor: Colors.grey,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                        : Text(
+                      'नोंदणी करा / Register',
+                      style: GoogleFonts.notoSansDevanagari(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!, width: 2),
-        ),
-      ),
-      child: Text(
-        title,
-        style: GoogleFonts.notoSansDevanagari(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: const Color(0xFF2E7D32),
         ),
       ),
     );
@@ -309,17 +365,18 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
-    TextInputType? keyboardType,
-    int? maxLength,
+    TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
-    bool required = true,
+    int? maxLength,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      maxLength: maxLength,
       inputFormatters: inputFormatters,
+      validator: validator,
+      maxLength: maxLength,
+      style: GoogleFonts.poppins(),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.notoSansDevanagari(fontSize: 14),
@@ -340,98 +397,25 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
         counterText: '',
       ),
-      validator: required ? validator : null,
     );
-  }
-
-  // Basic Aadhaar validation (checks format and first digit)
-  bool _validateAadhaar(String aadhaar) {
-    if (aadhaar.length != 12) return false;
-    
-    // First digit should not be 0 or 1
-    final firstDigit = int.tryParse(aadhaar[0]);
-    if (firstDigit == null || firstDigit == 0 || firstDigit == 1) {
-      return false;
-    }
-    
-    // All digits should be numbers
-    if (int.tryParse(aadhaar) == null) {
-      return false;
-    }
-    
-    return true;
-  }
-
-  Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    // Simulate registration process
-    await Future.delayed(const Duration(seconds: 2));
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isRegistered', true);
-    await prefs.setString('farmerName', _nameController.text);
-    await prefs.setString('farmerVillage', _villageController.text);
-    await prefs.setString('farmerPhone', _phoneController.text);
-    await prefs.setString('farmerAadhaar', _aadhaarController.text.replaceAll(' ', ''));
-    if (_alternatePhoneController.text.isNotEmpty) {
-      await prefs.setString('farmerAlternatePhone', _alternatePhoneController.text);
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'नोंदणी यशस्वी! स्वागत आहे 🎉\nRegistration Successful!',
-                  style: GoogleFonts.notoSansDevanagari(),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF2E7D32),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const FarmerHomeScreen()),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _villageController.dispose();
-    _phoneController.dispose();
-    _alternatePhoneController.dispose();
-    _aadhaarController.dispose();
-    super.dispose();
   }
 }
 
-// Custom formatter to add spaces in Aadhaar (XXXX XXXX XXXX format)
+// Aadhaar formatter (adds spaces after every 4 digits)
 class AadhaarInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
     final text = newValue.text.replaceAll(' ', '');
     if (text.length > 12) {
       return oldValue;
@@ -445,10 +429,9 @@ class AadhaarInputFormatter extends TextInputFormatter {
       }
     }
 
-    final string = buffer.toString();
     return TextEditingValue(
-      text: string,
-      selection: TextSelection.collapsed(offset: string.length),
+      text: buffer.toString(),
+      selection: TextSelection.collapsed(offset: buffer.length),
     );
   }
 }

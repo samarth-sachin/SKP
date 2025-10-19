@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:skp_smartfarm/screens/farmer/farmer_login_screen.dart';
+import 'firebase_options.dart';
 import 'services/local_storage_service.dart';
 import 'screens/farmer/farmer_home_screen.dart';
 import 'screens/farmer/farmer_registration_screen.dart';
@@ -10,6 +14,12 @@ import 'screens/admin/admin_login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const SKPSmartFarmApp());
 }
 
@@ -23,6 +33,14 @@ class SKPSmartFarmApp extends StatelessWidget {
       child: MaterialApp(
         title: 'SKP SmartFarm',
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaleFactor: 1.0,
+            ),
+            child: child!,
+          );
+        },
         theme: ThemeData(
           primaryColor: const Color(0xFF2E7D32),
           scaffoldBackgroundColor: const Color(0xFFF5F5F5),
@@ -40,12 +58,6 @@ class SKPSmartFarmApp extends StatelessWidget {
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-            ),
-          ),
-          cardTheme: CardThemeData(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
@@ -68,28 +80,33 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _textSlideAnimation;
+  late Animation<double> _logoRotation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2500),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.6, curve: Curves.easeIn)),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: const Interval(0.2, 0.8, curve: Curves.elasticOut)),
     );
-    
+
     _textSlideAnimation = Tween<Offset>(
       begin: const Offset(0, 1.0),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(parent: _controller, curve: const Interval(0.4, 1.0, curve: Curves.easeOut)),
+    );
+
+    _logoRotation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.8, curve: Curves.easeInOut)),
     );
 
     _controller.forward();
@@ -98,7 +115,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _navigateToNext() async {
     await Future.delayed(const Duration(seconds: 4));
-    
+
     final prefs = await SharedPreferences.getInstance();
     final isRegistered = prefs.getBool('isRegistered') ?? false;
     final isAdmin = prefs.getBool('isAdmin') ?? false;
@@ -151,7 +168,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
               ),
             ),
-            
+
             // Animated floating particles
             Positioned.fill(
               child: CustomPaint(
@@ -168,75 +185,78 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Enhanced Animated Logo Container
-                      Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.4),
-                              blurRadius: 40,
-                              spreadRadius: 5,
-                              offset: const Offset(0, 15),
+                      // Enhanced Animated Logo Container with Rotation
+                      RotationTransition(
+                        turns: _logoRotation,
+                        child: Container(
+                          width: 180,
+                          height: 180,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.4),
+                                blurRadius: 40,
+                                spreadRadius: 5,
+                                offset: const Offset(0, 15),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFF1B5E20).withOpacity(0.3),
+                                blurRadius: 20,
+                                spreadRadius: 10,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.8),
+                              width: 3,
                             ),
-                            BoxShadow(
-                              color: const Color(0xFF1B5E20).withOpacity(0.3),
-                              blurRadius: 20,
-                              spreadRadius: 10,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.8),
-                            width: 3,
                           ),
-                        ),
-                        child: ClipOval(
-                          child: Padding(
-                            padding: const EdgeInsets.all(15),
-                            child: Image.asset(
-                              'assets/images/skp_logo.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                          child: ClipOval(
+                            child: Padding(
+                              padding: const EdgeInsets.all(15),
+                              child: Image.asset(
+                                'assets/images/skp_logo.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                                      ),
+                                      shape: BoxShape.circle,
                                     ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.agriculture,
-                                        size: 70,
-                                        color: Colors.white.withOpacity(0.9),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        'SKP',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          letterSpacing: 4,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.agriculture,
+                                          size: 70,
+                                          color: Colors.white.withOpacity(0.9),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          'SKP',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            letterSpacing: 4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
                       ),
-                      
-                      const SizedBox(height: 60),
-                      
+
+                      const SizedBox(height: 50),
+
                       // Enhanced Animated Welcome Text
                       SlideTransition(
                         position: _textSlideAnimation,
@@ -245,7 +265,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             Text(
                               'सुस्वागतम्',
                               style: GoogleFonts.notoSansDevanagari(
-                                fontSize: 52,
+                                fontSize: 48,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                                 letterSpacing: 2,
@@ -265,9 +285,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Welcome',
+                              'Welcome to SKP SmartFarm',
                               style: GoogleFonts.poppins(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w500,
                                 color: Colors.white.withOpacity(0.9),
                                 letterSpacing: 1,
@@ -280,41 +300,74 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 100),
-                      
-                      // Loading Indicator
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white.withOpacity(0.8),
-                          ),
-                          backgroundColor: Colors.white.withOpacity(0.2),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      // Version Text
-                      Text(
-                        ' ',
-                        style: GoogleFonts.notoSansDevanagari(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w500,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withOpacity(0.5),
-                              offset: const Offset(0, 2),
-                              blurRadius: 5,
+                            const SizedBox(height: 8),
+                            Text(
+                              'शेतसखा - शेतकऱ्यांचा डिजिटल सहकारी',
+                              style: GoogleFonts.notoSansDevanagari(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.8),
+                                fontStyle: FontStyle.italic,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.4),
+                                    offset: const Offset(0, 2),
+                                    blurRadius: 5,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 80),
+
+                      // Beautiful Loading Indicator with Pulse Effect
+                      ScaleTransition(
+                        scale: Tween<double>(begin: 0.9, end: 1.1).animate(
+                          CurvedAnimation(
+                            parent: _controller,
+                            curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
+                          ),
+                        ),
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white.withOpacity(0.9),
+                              ),
+                              backgroundColor: Colors.transparent,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Beautiful Tagline
+                      AnimatedOpacity(
+                        opacity: _controller.value > 0.7 ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 500),
+                        child: Text(
+                          'Growing Together • Growing Green',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.7),
+                            fontWeight: FontWeight.w300,
+                            letterSpacing: 1.2,
+                          ),
                         ),
                       ),
                     ],
@@ -352,7 +405,7 @@ class FarmingFieldPainter extends CustomPainter {
     for (int i = 0; i < 80; i++) {
       final x = (i * 20.0) % size.width;
       final y = size.height - (i * 30.0) % size.height;
-      
+
       // Draw grass blades with variation
       final path = Path();
       path.moveTo(x, y);
@@ -361,7 +414,7 @@ class FarmingFieldPainter extends CustomPainter {
       path.quadraticBezierTo(x + 5, y - 10 - (i % 6), x + 8, y);
       canvas.drawPath(path, paint);
     }
-    
+
     // Draw crop rows pattern with curves
     for (int i = 0; i < 12; i++) {
       final y = size.height * 0.5 + (i * 35);
@@ -369,16 +422,16 @@ class FarmingFieldPainter extends CustomPainter {
       path.moveTo(0, y);
       for (int j = 0; j < size.width; j += 40) {
         path.quadraticBezierTo(
-          j + 20, 
-          y + 10 * (j % 3 == 0 ? 1 : -1), 
-          j + 40, 
-          y
+            j + 20,
+            y + 10 * (j % 3 == 0 ? 1 : -1),
+            j + 40,
+            y
         );
       }
       canvas.drawPath(path, strokePaint);
     }
 
-    // Draw sun/moon in corner
+    // Draw sun in corner
     final sunPaint = Paint()
       ..color = Colors.white.withOpacity(0.1)
       ..style = PaintingStyle.fill;
@@ -402,7 +455,7 @@ class FloatingParticlesPainter extends CustomPainter {
       final x = (DateTime.now().millisecondsSinceEpoch / 50 + i * 100) % size.width;
       final y = (DateTime.now().millisecondsSinceEpoch / 80 + i * 80) % size.height;
       final radius = 1 + (i % 3).toDouble();
-      
+
       canvas.drawCircle(Offset(x, y), radius, paint);
     }
   }
@@ -420,12 +473,12 @@ class RoleSelectionScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
-        child: SingleChildScrollView(  // ✅ Make it scrollable
+        child: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height - 
-                         MediaQuery.of(context).padding.top - 
-                         MediaQuery.of(context).padding.bottom,
+              minHeight: MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  MediaQuery.of(context).padding.bottom,
             ),
             child: Column(
               children: [
@@ -447,10 +500,10 @@ class RoleSelectionScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       const SizedBox(height: 20),
-                      
+
                       // Logo
                       Container(
-                        width: 100,  // ✅ Reduced size for large fonts
+                        width: 100,
                         height: 100,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -485,13 +538,13 @@ class RoleSelectionScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 16),
-                      
-                      // App name - Fixed font size
+
+                      // App name
                       Text(
                         'शेतसखा',
-                        textScaleFactor: 1.0,  // ✅ Ignore system font scaling
+                        textScaleFactor: 1.0,
                         style: GoogleFonts.notoSansDevanagari(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -501,7 +554,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         'शेतकऱ्यांसाठी खत व्यवस्थापन',
-                        textScaleFactor: 1.0,  // ✅ Ignore system font scaling
+                        textScaleFactor: 1.0,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.notoSansDevanagari(
                           fontSize: 12,
@@ -514,7 +567,7 @@ class RoleSelectionScreen extends StatelessWidget {
 
                 const SizedBox(height: 32),
 
-                // Role Selection - Flexible space
+                // Role Selection
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
@@ -522,7 +575,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     children: [
                       Text(
                         'तुम्ही कोण आहात?',
-                        textScaleFactor: 1.0,  // ✅ Fixed font size
+                        textScaleFactor: 1.0,
                         style: GoogleFonts.notoSansDevanagari(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -532,7 +585,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         'Who are you?',
-                        textScaleFactor: 1.0,  // ✅ Fixed font size
+                        textScaleFactor: 1.0,
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           color: Colors.grey[600],
@@ -543,7 +596,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       // Farmer Card
                       _buildRoleCard(
                         context,
-                        icon: Icons.person,
+                        icon: Icons.agriculture,
                         gradient: const LinearGradient(
                           colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
                         ),
@@ -555,7 +608,7 @@ class RoleSelectionScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const FarmerRegistrationScreen(),
+                              builder: (_) => const FarmerLoginScreen(),
                             ),
                           );
                         },
@@ -566,7 +619,7 @@ class RoleSelectionScreen extends StatelessWidget {
                       // Admin Card
                       _buildRoleCard(
                         context,
-                        icon: Icons.admin_panel_settings,
+                        icon: Icons.store,
                         gradient: const LinearGradient(
                           colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
                         ),
@@ -589,17 +642,38 @@ class RoleSelectionScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // Footer
+                // Footer with beautiful design
                 Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text(
-                    ' ',
-                    textAlign: TextAlign.center,
-                    textScaleFactor: 1.0,  // ✅ Fixed font size
-                    style: GoogleFonts.notoSansDevanagari(
-                      fontSize: 10,
-                      color: Colors.grey[600],
-                    ),
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 1,
+                        width: 100,
+                        color: Colors.grey[300],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'स्मार्ट शेती • समृद्ध भविष्य',
+                        textAlign: TextAlign.center,
+                        textScaleFactor: 1.0,
+                        style: GoogleFonts.notoSansDevanagari(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Smart Farming • Prosperous Future',
+                        textAlign: TextAlign.center,
+                        textScaleFactor: 1.0,
+                        style: GoogleFonts.poppins(
+                          fontSize: 9,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -611,22 +685,22 @@ class RoleSelectionScreen extends StatelessWidget {
   }
 
   Widget _buildRoleCard(
-    BuildContext context, {
-    required IconData icon,
-    required Gradient gradient,
-    required String titleMarathi,
-    required String titleEnglish,
-    required String subtitleMarathi,
-    required String subtitleEnglish,
-    required VoidCallback onTap,
-  }) {
+      BuildContext context, {
+        required IconData icon,
+        required Gradient gradient,
+        required String titleMarathi,
+        required String titleEnglish,
+        required String subtitleMarathi,
+        required String subtitleEnglish,
+        required VoidCallback onTap,
+      }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(16),  // ✅ Reduced padding
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -641,7 +715,7 @@ class RoleSelectionScreen extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),  // ✅ Reduced padding
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   gradient: gradient,
                   borderRadius: BorderRadius.circular(12),
@@ -653,7 +727,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Icon(icon, size: 28, color: Colors.white),  // ✅ Reduced icon size
+                child: Icon(icon, size: 28, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -663,7 +737,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   children: [
                     Text(
                       titleMarathi,
-                      textScaleFactor: 1.0,  // ✅ Fixed font size
+                      textScaleFactor: 1.0,
                       style: GoogleFonts.notoSansDevanagari(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -672,7 +746,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     ),
                     Text(
                       titleEnglish,
-                      textScaleFactor: 1.0,  // ✅ Fixed font size
+                      textScaleFactor: 1.0,
                       style: GoogleFonts.poppins(
                         fontSize: 11,
                         color: Colors.grey[600],
@@ -681,7 +755,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitleMarathi,
-                      textScaleFactor: 1.0,  // ✅ Fixed font size
+                      textScaleFactor: 1.0,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.notoSansDevanagari(
@@ -692,10 +766,17 @@ class RoleSelectionScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Color(0xFF2E7D32),
-                size: 18,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Color(0xFF2E7D32),
+                  size: 14,
+                ),
               ),
             ],
           ),

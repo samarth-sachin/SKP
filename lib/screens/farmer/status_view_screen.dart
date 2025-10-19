@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 import '../../models/status_model.dart';
+import '../../services/firebase_service.dart';
 
 class StatusViewScreen extends StatefulWidget {
   final List<StatusModel> statuses;
@@ -19,18 +22,27 @@ class StatusViewScreen extends StatefulWidget {
 class _StatusViewScreenState extends State<StatusViewScreen> {
   late PageController _pageController;
   late int _currentIndex;
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+
+    // Increment view count for first status
+    _incrementViewCount(widget.statuses[_currentIndex]);
+  }
+
+  void _incrementViewCount(StatusModel status) {
+    FirebaseService.incrementStatusViewCount(status.id);
   }
 
   String _getTimeRemaining(DateTime expiresAt) {
     final now = DateTime.now();
     final difference = expiresAt.difference(now);
-    
+
     if (difference.inDays > 0) {
       return '${difference.inDays} दिवस शिल्लक';
     } else if (difference.inHours > 0) {
@@ -40,6 +52,30 @@ class _StatusViewScreenState extends State<StatusViewScreen> {
     } else {
       return 'कालबाह्य';
     }
+  }
+
+  void _initializeVideoPlayer(String videoUrl) {
+    _videoController?.dispose();
+    _chewieController?.dispose();
+
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+    _videoController!.initialize().then((_) {
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController!,
+        autoPlay: true,
+        looping: false,
+        allowFullScreen: true,
+        allowMuting: true,
+        showControls: true,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: const Color(0xFF2E7D32),
+          handleColor: const Color(0xFF2E7D32),
+          backgroundColor: Colors.grey,
+          bufferedColor: Colors.grey,
+        ),
+      );
+      setState(() {});
+    });
   }
 
   @override
@@ -80,6 +116,15 @@ class _StatusViewScreenState extends State<StatusViewScreen> {
               controller: _pageController,
               onPageChanged: (index) {
                 setState(() => _currentIndex = index);
+                _incrementViewCount(widget.statuses[index]);
+
+                // Initialize video if needed
+                final newStatus = widget.statuses[index];
+                if (newStatus.type == StatusType.video && newStatus.imageUrl != null) {
+                  _initializeVideoPlayer(newStatus.imageUrl!);
+                } else {
+                  _videoController?.pause();
+                }
               },
               itemCount: widget.statuses.length,
               itemBuilder: (context, index) {
@@ -94,7 +139,7 @@ class _StatusViewScreenState extends State<StatusViewScreen> {
                 child: Row(
                   children: List.generate(
                     widget.statuses.length,
-                    (index) => Expanded(
+                        (index) => Expanded(
                       child: Container(
                         height: 3,
                         margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -193,6 +238,28 @@ class _StatusViewScreenState extends State<StatusViewScreen> {
                       ],
                     ),
                   ),
+                  // View count
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.visibility, color: Colors.white, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${status.viewCount}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -263,11 +330,19 @@ class _StatusViewScreenState extends State<StatusViewScreen> {
                       if (status.type == StatusType.image && status.imageUrl != null)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: Image.asset(
+                          child: Image.network(
                             status.imageUrl!,
                             width: double.infinity,
                             height: 200,
                             fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                height: 200,
+                                color: Colors.grey[200],
+                                child: const Center(child: CircularProgressIndicator()),
+                              );
+                            },
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 height: 200,
@@ -283,7 +358,25 @@ class _StatusViewScreenState extends State<StatusViewScreen> {
                           ),
                         ),
 
-                      if (status.type == StatusType.image) const SizedBox(height: 24),
+                      // Video (if exists)
+                      if (status.type == StatusType.video && status.imageUrl != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: _chewieController != null && _videoController != null
+                              ? SizedBox(
+                            height: 200,
+                            child: Chewie(controller: _chewieController!),
+                          )
+                              : Container(
+                            height: 200,
+                            color: Colors.black87,
+                            child: const Center(
+                              child: CircularProgressIndicator(color: Colors.white),
+                            ),
+                          ),
+                        ),
+
+                      if (status.type != StatusType.text) const SizedBox(height: 24),
 
                       // Description
                       Text(
@@ -317,6 +410,8 @@ class _StatusViewScreenState extends State<StatusViewScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _videoController?.dispose();
+    _chewieController?.dispose();
     super.dispose();
   }
 }

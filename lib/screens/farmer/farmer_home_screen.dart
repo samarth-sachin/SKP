@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:provider/provider.dart';
-import '../../services/local_storage_service.dart';
+import '../../services/firebase_service.dart';
+import '../../models/farmer_model.dart';
 import '../../models/land_model.dart';
 import '../../models/dose_model.dart';
 import '../../main.dart';
 import 'weather_screen.dart';
 import 'notifications_screen.dart';
 import 'land_details_screen.dart';
-import 'fertilizer_info_screen.dart'; 
-import 'add_land_screen.dart'; 
+import 'fertilizer_info_screen.dart';
+import 'add_land_screen.dart';
 import 'status_screen.dart';
 
 class FarmerHomeScreen extends StatefulWidget {
@@ -23,19 +23,16 @@ class FarmerHomeScreen extends StatefulWidget {
 
 class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   int _selectedIndex = 0;
-  String _farmerId = '1';
+  String _farmerId = '';
   String _farmerName = '';
+  FarmerModel? _currentFarmer;
 
   // Exit confirmation handler
   Future<bool> _onWillPop() async {
     if (_selectedIndex != 0) {
-      // If not on home tab, go to home tab first
-      setState(() {
-        _selectedIndex = 0;
-      });
-      return false; // Don't exit app
+      setState(() => _selectedIndex = 0);
+      return false;
     } else {
-      // If on home tab, show exit confirmation
       return await _showExitDialog() ?? false;
     }
   }
@@ -44,18 +41,14 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             const Icon(Icons.exit_to_app, color: Color(0xFF2E7D32)),
             const SizedBox(width: 12),
             Text(
               'अॅप बंद करा?',
-              style: GoogleFonts.notoSansDevanagari(
-                fontWeight: FontWeight.bold,
-              ),
+              style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -66,28 +59,15 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'नाही',
-              style: GoogleFonts.notoSansDevanagari(
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text('नाही', style: GoogleFonts.notoSansDevanagari(color: Colors.grey[700], fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: Text(
-              'होय, बंद करा',
-              style: GoogleFonts.notoSansDevanagari(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: Text('होय, बंद करा', style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -100,22 +80,29 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     _loadFarmerData();
   }
 
+  // ✅ Load farmer data from SharedPreferences & Firebase
   Future<void> _loadFarmerData() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _farmerName = prefs.getString('farmerName') ?? 'शेतकरी';
-    });
+    final farmerId = prefs.getString('farmerId') ?? '';
+
+    if (farmerId.isNotEmpty) {
+      final farmer = await FirebaseService.getFarmerById(farmerId);
+      setState(() {
+        _farmerId = farmerId;
+        _currentFarmer = farmer;
+        _farmerName = farmer?.name ?? 'शेतकरी';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Updated screens list to include StatusScreen
     final screens = [
       _buildHomeContent(),
-      const StatusScreen(),     // Index 1: Status/Updates
-      const WeatherScreen(),    // Index 2: Weather
-      const NotificationsScreen(), // Index 3: Notifications
-      _buildProfileContent(),   // Index 4: Profile
+      const StatusScreen(),
+      const WeatherScreen(),
+      const NotificationsScreen(),
+      _buildProfileContent(),
     ];
 
     return WillPopScope(
@@ -127,7 +114,6 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           backgroundColor: Colors.white,
           title: Row(
             children: [
-              // SKP Logo Image
               Container(
                 width: 45,
                 height: 45,
@@ -200,7 +186,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.notifications_outlined, color: Color(0xFF2E7D32)),
-                  onPressed: () => setState(() => _selectedIndex = 3), // Notifications tab
+                  onPressed: () => setState(() => _selectedIndex = 3),
                 ),
                 Positioned(
                   right: 8,
@@ -211,10 +197,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                       color: Colors.red,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                     child: Text(
                       '3',
                       style: GoogleFonts.poppins(
@@ -240,33 +223,15 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           onTap: (index) => setState(() => _selectedIndex = index),
           selectedItemColor: const Color(0xFF2E7D32),
           unselectedItemColor: Colors.grey[400],
-          selectedLabelStyle: GoogleFonts.notoSansDevanagari(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
+          selectedLabelStyle: GoogleFonts.notoSansDevanagari(fontSize: 12, fontWeight: FontWeight.w600),
           unselectedLabelStyle: GoogleFonts.notoSansDevanagari(fontSize: 11),
           type: BottomNavigationBarType.fixed,
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 28),
-              label: 'मुख्यपृष्ठ',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.circle_notifications, size: 28),
-              label: 'अपडेट्स',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.wb_sunny, size: 28),
-              label: 'हवामान',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications, size: 28),
-              label: 'सूचना',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person, size: 28),
-              label: 'प्रोफाइल',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.home, size: 28), label: 'मुख्यपृष्ठ'),
+            BottomNavigationBarItem(icon: Icon(Icons.circle_notifications, size: 28), label: 'अपडेट्स'),
+            BottomNavigationBarItem(icon: Icon(Icons.wb_sunny, size: 28), label: 'हवामान'),
+            BottomNavigationBarItem(icon: Icon(Icons.notifications, size: 28), label: 'सूचना'),
+            BottomNavigationBarItem(icon: Icon(Icons.person, size: 28), label: 'प्रोफाइल'),
           ],
         ),
       ),
@@ -274,8 +239,13 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   }
 
   Widget _buildHomeContent() {
+    if (_farmerId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return RefreshIndicator(
       onRefresh: () async {
+        await _loadFarmerData();
         setState(() {});
       },
       child: SingleChildScrollView(
@@ -283,7 +253,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Card with Gradient
+            // Welcome Card
             Container(
               width: double.infinity,
               margin: const EdgeInsets.all(16),
@@ -292,10 +262,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF2E7D32),
-                    Color(0xFF66BB6A),
-                  ],
+                  colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
@@ -311,11 +278,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.wb_sunny,
-                        color: Colors.amber,
-                        size: 32,
-                      ),
+                      const Icon(Icons.wb_sunny, color: Colors.amber, size: 32),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -350,11 +313,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.schedule,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                        const Icon(Icons.schedule, color: Colors.white, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -366,11 +325,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                             ),
                           ),
                         ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                        const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
                       ],
                     ),
                   ),
@@ -378,7 +333,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               ),
             ),
 
-            // Quick Actions Grid
+            // Quick Actions
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: GridView.count(
@@ -440,26 +395,18 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                       );
                     },
                     icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: Text(
-                      'नवीन जोडा',
-                      style: GoogleFonts.notoSansDevanagari(fontSize: 13),
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF2E7D32),
-                    ),
+                    label: Text('नवीन जोडा', style: GoogleFonts.notoSansDevanagari(fontSize: 13)),
+                    style: TextButton.styleFrom(foregroundColor: const Color(0xFF2E7D32)),
                   ),
                 ],
               ),
             ),
 
-            // Lands List
+            // ✅ Lands List from Firebase
             _buildLandsList(),
 
             const SizedBox(height: 20),
-
-            // Fertilizer Info Section
             _buildFertilizerInfoSection(),
-
             const SizedBox(height: 80),
           ],
         ),
@@ -519,17 +466,25 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
+  // ✅ Build lands list from Firebase
   Widget _buildLandsList() {
-    final storageService = Provider.of<LocalStorageService>(context);
-    
     return StreamBuilder<List<LandModel>>(
-      stream: storageService.getLandsByFarmerId(_farmerId),
+      stream: FirebaseService.getLandsByFarmerId(_farmerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+              ),
             ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Error: ${snapshot.error}'),
           );
         }
 
@@ -544,18 +499,19 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           itemCount: snapshot.data!.length,
           itemBuilder: (context, index) {
             final land = snapshot.data![index];
-            return _buildLandCard(land, storageService);
+            return _buildLandCard(land);
           },
         );
       },
     );
   }
 
-  Widget _buildLandCard(LandModel land, LocalStorageService storageService) {
-    return FutureBuilder<DoseModel?>(
-      future: storageService.getLatestDoseForLand(land.id),
-      builder: (context, snapshot) {
-        final latestDose = snapshot.data;
+  Widget _buildLandCard(LandModel land) {
+    return StreamBuilder<List<DoseModel>>(
+      stream: FirebaseService.getDosesForLand(land.id),
+      builder: (context, doseSnapshot) {
+        final doses = doseSnapshot.data ?? [];
+        final latestDose = doses.isNotEmpty ? doses.first : null;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -576,9 +532,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => LandDetailsScreen(land: land),
-                  ),
+                  MaterialPageRoute(builder: (_) => LandDetailsScreen(land: land)),
                 );
               },
               borderRadius: BorderRadius.circular(12),
@@ -595,11 +549,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                             color: const Color(0xFF2E7D32).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
-                            Icons.landscape,
-                            color: Color(0xFF2E7D32),
-                            size: 24,
-                          ),
+                          child: const Icon(Icons.landscape, color: Color(0xFF2E7D32), size: 24),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -616,19 +566,12 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
                               ),
                               Text(
                                 land.location,
-                                style: GoogleFonts.notoSansDevanagari(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
+                                style: GoogleFonts.notoSansDevanagari(fontSize: 13, color: Colors.grey[600]),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Color(0xFF2E7D32),
-                          size: 18,
-                        ),
+                        const Icon(Icons.arrow_forward_ios, color: Color(0xFF2E7D32), size: 18),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -714,13 +657,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           children: [
             Icon(icon, size: 14, color: Colors.grey[600]),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.notoSansDevanagari(
-                fontSize: 11,
-                color: Colors.grey[600],
-              ),
-            ),
+            Text(label, style: GoogleFonts.notoSansDevanagari(fontSize: 11, color: Colors.grey[600])),
           ],
         ),
         const SizedBox(height: 4),
@@ -760,10 +697,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
           Text(
             'आपली जमीन जोडण्यासाठी वर क्लिक करा',
             textAlign: TextAlign.center,
-            style: GoogleFonts.notoSansDevanagari(
-              fontSize: 13,
-              color: Colors.grey[500],
-            ),
+            style: GoogleFonts.notoSansDevanagari(fontSize: 13, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -775,9 +709,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue[50]!, Colors.blue[100]!],
-        ),
+        gradient: LinearGradient(colors: [Colors.blue[50]!, Colors.blue[100]!]),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue[200]!),
       ),
@@ -825,10 +757,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
               );
             },
             icon: const Icon(Icons.arrow_forward, size: 16),
-            label: Text(
-              'अधिक वाचा',
-              style: GoogleFonts.notoSansDevanagari(fontSize: 13),
-            ),
+            label: Text('अधिक वाचा', style: GoogleFonts.notoSansDevanagari(fontSize: 13)),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.blue[700],
               side: BorderSide(color: Colors.blue[700]!),
@@ -839,214 +768,150 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
- Widget _buildProfileContent() {
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      children: [
-        // Profile Header
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: const Color(0xFF2E7D32).withOpacity(0.1),
-                child: const Icon(Icons.person, size: 50, color: Color(0xFF2E7D32)),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _farmerName,
-                style: GoogleFonts.notoSansDevanagari(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+  Widget _buildProfileContent() {
+    if (_currentFarmer == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Profile Header
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'शेतकरी खाते',
-                style: GoogleFonts.notoSansDevanagari(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Edit Profile Form
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'प्रोफाइल संपादित करा',
-                style: GoogleFonts.notoSansDevanagari(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2E7D32),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Name Field
-              TextFormField(
-                initialValue: _farmerName,
-                decoration: InputDecoration(
-                  labelText: 'पूर्ण नाव',
-                  labelStyle: GoogleFonts.notoSansDevanagari(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.person),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _farmerName = value;
-                  });
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              // Phone Number (Read-only)
-              TextFormField(
-                initialValue: '9421112979', // Replace with actual phone from registration
-                decoration: InputDecoration(
-                  labelText: 'मोबाईल नंबर',
-                  labelStyle: GoogleFonts.notoSansDevanagari(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.phone),
-                ),
-                readOnly: true,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Village
-              TextFormField(
-                initialValue: 'तुमचे गाव', // Replace with actual data
-                decoration: InputDecoration(
-                  labelText: 'गाव',
-                  labelStyle: GoogleFonts.notoSansDevanagari(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.location_on),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Taluka
-              TextFormField(
-                initialValue: 'तुमची तालुका', // Replace with actual data
-                decoration: InputDecoration(
-                  labelText: 'तालुका',
-                  labelStyle: GoogleFonts.notoSansDevanagari(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.map),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _updateProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+              ],
+            ),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: const Color(0xFF2E7D32).withOpacity(0.1),
                   child: Text(
-                    'जतन करा',
-                    style: GoogleFonts.notoSansDevanagari(
-                      fontSize: 16,
+                    _currentFarmer!.name[0].toUpperCase(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 40,
                       fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2E7D32),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Logout Button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton.icon(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            label: Text(
-              'बाहेर पडा',
-              style: GoogleFonts.notoSansDevanagari(fontSize: 16),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  _currentFarmer!.name,
+                  style: GoogleFonts.notoSansDevanagari(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'शेतकरी खाते',
+                  style: GoogleFonts.notoSansDevanagari(fontSize: 16, color: Colors.grey[600]),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
 
-// Add this method to update profile
-Future<void> _updateProfile() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString('farmerName', _farmerName);
-  
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        'प्रोफाइल यशस्वीरित्या अपडेट केली',
-        style: GoogleFonts.notoSansDevanagari(),
+          const SizedBox(height: 20),
+
+          // Profile Info
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'प्रोफाइल माहिती',
+                  style: GoogleFonts.notoSansDevanagari(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2E7D32),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildProfileInfoRow(Icons.location_on, 'गाव', _currentFarmer!.village),
+                _buildProfileInfoRow(Icons.phone, 'मोबाईल', _currentFarmer!.phoneNumber),
+                if (_currentFarmer!.alternatePhone != null)
+                  _buildProfileInfoRow(Icons.phone_android, 'पर्यायी नंबर', _currentFarmer!.alternatePhone!),
+                _buildProfileInfoRow(Icons.credit_card, 'आधार', _currentFarmer!.aadhaarNumber),
+                _buildProfileInfoRow(
+                  Icons.calendar_today,
+                  'नोंदणी तारीख',
+                  _formatDate(_currentFarmer!.registrationDate),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Logout Button
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: _logout,
+              icon: const Icon(Icons.logout),
+              label: Text('बाहेर पडा', style: GoogleFonts.notoSansDevanagari(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
       ),
-      backgroundColor: Colors.green,
-    ),
-  );
-}
+    );
+  }
+
+  Widget _buildProfileInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2E7D32).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: const Color(0xFF2E7D32), size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: GoogleFonts.notoSansDevanagari(fontSize: 12, color: Colors.grey[600])),
+                const SizedBox(height: 2),
+                Text(value, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _contactShop() async {
     final Uri phoneUri = Uri(scheme: 'tel', path: '9421112979');
     if (await canLaunchUrl(phoneUri)) {
@@ -1055,10 +920,7 @@ Future<void> _updateProfile() async {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'फोन कॉल करू शकत नाही',
-              style: GoogleFonts.notoSansDevanagari(),
-            ),
+            content: Text('फोन कॉल करू शकत नाही', style: GoogleFonts.notoSansDevanagari()),
             backgroundColor: Colors.red,
           ),
         );
@@ -1070,14 +932,8 @@ Future<void> _updateProfile() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          'बाहेर पडा',
-          style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'तुम्हाला नक्की बाहेर पडायचे आहे का?',
-          style: GoogleFonts.notoSansDevanagari(),
-        ),
+        title: Text('बाहेर पडा', style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold)),
+        content: Text('तुम्हाला नक्की बाहेर पडायचे आहे का?', style: GoogleFonts.notoSansDevanagari()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -1098,7 +954,7 @@ Future<void> _updateProfile() async {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-          (route) => false,
+              (route) => false,
         );
       }
     }

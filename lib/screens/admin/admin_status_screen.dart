@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'dart:io';
 import '../../models/status_model.dart';
+import '../../services/firebase_service.dart';
 
 class AdminStatusScreen extends StatefulWidget {
   const AdminStatusScreen({super.key});
@@ -19,36 +20,6 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
   MediaType _selectedMediaType = MediaType.text;
   VideoPlayerController? _videoController;
   ChewieController? _chewieController;
-
-  // Demo statuses - later connect to Firebase
-  final List<StatusModel> _statuses = [
-    StatusModel(
-      id: '1',
-      title: 'New Fertilizer Arrived',
-      titleMarathi: 'नवीन खत आले',
-      description: 'Premium quality NPK fertilizer now available at best prices!',
-      descriptionMarathi: 'उत्तम दर्जाचे NPK खत आता उपलब्ध! उत्तम किमतीत मिळवा.',
-      type: StatusType.text,
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      expiresAt: DateTime.now().add(const Duration(hours: 22)),
-      icon: Icons.grass,
-      categoryColor: Colors.green,
-      category: 'खत',
-    ),
-    StatusModel(
-      id: '2',
-      title: 'Weather Alert',
-      titleMarathi: 'हवामान सूचना',
-      description: 'Heavy rain expected in next 48 hours.',
-      descriptionMarathi: 'पुढील ४८ तासांत मुसळधार पाऊस अपेक्षित.',
-      type: StatusType.text,
-      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-      expiresAt: DateTime.now().add(const Duration(hours: 19)),
-      icon: Icons.cloud,
-      categoryColor: Colors.blue,
-      category: 'हवामान',
-    ),
-  ];
 
   @override
   void dispose() {
@@ -65,7 +36,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
         maxHeight: 1080,
         imageQuality: 85,
       );
-      
+
       if (image != null) {
         setState(() {
           _selectedMedia = File(image.path);
@@ -83,7 +54,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
         source: ImageSource.gallery,
         maxDuration: const Duration(seconds: 30),
       );
-      
+
       if (video != null) {
         setState(() {
           _selectedMedia = File(video.path);
@@ -104,7 +75,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
         maxHeight: 1080,
         imageQuality: 85,
       );
-      
+
       if (image != null) {
         setState(() {
           _selectedMedia = File(image.path);
@@ -122,7 +93,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
         source: ImageSource.camera,
         maxDuration: const Duration(seconds: 30),
       );
-      
+
       if (video != null) {
         setState(() {
           _selectedMedia = File(video.path);
@@ -138,7 +109,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
   void _initializeVideoPlayer(File videoFile) {
     _videoController?.dispose();
     _chewieController?.dispose();
-    
+
     _videoController = VideoPlayerController.file(videoFile);
     _videoController!.initialize().then((_) {
       _chewieController = ChewieController(
@@ -183,127 +154,161 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      body: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 50, 16, 20),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
+      body: StreamBuilder<List<StatusModel>>(
+        stream: FirebaseService.getAllStatusesForAdmin(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6F00)),
               ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error, size: 60, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text('Error loading statuses', style: GoogleFonts.poppins(color: Colors.red)),
+                ],
               ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            );
+          }
+
+          final statuses = snapshot.data ?? [];
+
+          return Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 50, 16, 20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFFF6F00), Color(0xFFFF8F00)],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
+                  ),
+                ),
+                child: Column(
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'स्टेटस व्यवस्थापन',
-                          style: GoogleFonts.notoSansDevanagari(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'स्टेटस व्यवस्थापन',
+                              style: GoogleFonts.notoSansDevanagari(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'Status Management',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          'Status Management',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: Colors.white.withOpacity(0.9),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${statuses.length}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_statuses.length}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Active Status Count
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.orange[50]!, Colors.orange[100]!],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.orange[300]!),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info, color: Color(0xFFFF6F00)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'सक्रिय स्टेटस',
-                          style: GoogleFonts.notoSansDevanagari(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange[900],
-                          ),
-                        ),
-                        Text(
-                          'सर्व शेतकरी हे स्टेटस पाहू शकतात',
-                          style: GoogleFonts.notoSansDevanagari(
-                            fontSize: 12,
-                            color: Colors.orange[800],
-                          ),
-                        ),
-                      ],
+
+              const SizedBox(height: 20),
+
+              // Active Status Count
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange[50]!, Colors.orange[100]!],
                     ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.orange[300]!),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info, color: Color(0xFFFF6F00)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'सक्रिय स्टेटस: ${statuses.where((s) => !s.isExpired).length}',
+                              style: GoogleFonts.notoSansDevanagari(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange[900],
+                              ),
+                            ),
+                            Text(
+                              'सर्व शेतकरी हे स्टेटस पाहू शकतात',
+                              style: GoogleFonts.notoSansDevanagari(
+                                fontSize: 12,
+                                color: Colors.orange[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (statuses.any((s) => s.isExpired))
+                        IconButton(
+                          icon: const Icon(Icons.delete_sweep, color: Colors.red),
+                          onPressed: () => _deleteExpiredStatuses(),
+                          tooltip: 'Delete Expired',
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-          // Status List
-          Expanded(
-            child: _statuses.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _statuses.length,
-                    itemBuilder: (context, index) {
-                      final status = _statuses[index];
-                      return _buildStatusCard(status, index);
-                    },
-                  ),
-          ),
-        ],
+              // Status List
+              Expanded(
+                child: statuses.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: statuses.length,
+                  itemBuilder: (context, index) {
+                    final status = statuses[index];
+                    return _buildStatusCard(status);
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddStatusDialog(),
@@ -345,7 +350,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
     );
   }
 
-  Widget _buildStatusCard(StatusModel status, int index) {
+  Widget _buildStatusCard(StatusModel status) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -405,41 +410,52 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                     PopupMenuItem(
                       child: Row(
                         children: [
-                          const Icon(Icons.edit, size: 18, color: Colors.blue),
-                          const SizedBox(width: 8),
-                          Text('संपादित करा', style: GoogleFonts.notoSansDevanagari(fontSize: 14)),
-                        ],
-                      ),
-                      onTap: () => Future.delayed(
-                        Duration.zero,
-                        () => _showAddStatusDialog(status: status, index: index),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      child: Row(
-                        children: [
                           const Icon(Icons.delete, size: 18, color: Colors.red),
                           const SizedBox(width: 8),
                           Text('हटवा', style: GoogleFonts.notoSansDevanagari(fontSize: 14)),
                         ],
                       ),
-                      onTap: () => Future.delayed(
-                        Duration.zero,
-                        () => _deleteStatus(index),
-                      ),
+                      onTap: () => Future.delayed(Duration.zero, () => _deleteStatus(status)),
                     ),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            
+
             // Media Preview
             if (status.type == StatusType.image && status.imageUrl != null)
-              _buildImagePreview(status.imageUrl!),
-            
-            if (status.type == StatusType.video && status.imageUrl != null)
-              _buildVideoPreview(status.imageUrl!),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  status.imageUrl!,
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 200,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.image, size: 50, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            if (status.type == StatusType.image) const SizedBox(height: 12),
 
             Text(
               status.descriptionMarathi,
@@ -486,81 +502,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
     );
   }
 
-  Widget _buildImagePreview(String imageUrl) {
-    return Container(
-      width: double.infinity,
-      height: 200,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.grey[100],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.file(
-          File(imageUrl),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey[200],
-              child: const Center(
-                child: Icon(Icons.image, size: 50, color: Colors.grey),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideoPreview(String videoUrl) {
-    return Container(
-      width: double.infinity,
-      height: 200,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.black87,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            if (_chewieController != null && _videoController != null)
-              Chewie(controller: _chewieController!)
-            else
-              const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.videocam, size: 50, color: Colors.white),
-                    SizedBox(height: 8),
-                    Text(
-                      'व्हिडिओ लोड होत आहे...',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.play_arrow, color: Colors.white, size: 20),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAddStatusDialog({StatusModel? status, int? index}) {
+  void _showAddStatusDialog({StatusModel? status}) {
     final titleController = TextEditingController(text: status?.titleMarathi ?? '');
     final titleEnController = TextEditingController(text: status?.title ?? '');
     final descController = TextEditingController(text: status?.descriptionMarathi ?? '');
@@ -568,7 +510,6 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
     String selectedCategory = status?.category ?? 'खत';
     int expiryHours = 24;
 
-    // Reset media when opening dialog
     if (status == null) {
       _clearMedia();
     }
@@ -648,7 +589,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                         if (_selectedMediaType == MediaType.image)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.file(_selectedMedia!, fit: BoxFit.cover),
+                            child: Image.file(_selectedMedia!, fit: BoxFit.cover, width: double.infinity),
                           )
                         else if (_selectedMediaType == MediaType.video && _chewieController != null)
                           ClipRRect(
@@ -659,10 +600,13 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                           top: 8,
                           right: 8,
                           child: GestureDetector(
-                            onTap: _clearMedia,
+                            onTap: () {
+                              _clearMedia();
+                              setDialogState(() {});
+                            },
                             child: Container(
                               padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: Colors.black54,
                                 shape: BoxShape.circle,
                               ),
@@ -686,14 +630,22 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                 Wrap(
                   spacing: 8,
                   children: [
-                    _buildCategoryChip('खत', 'खत', Icons.grass, Colors.green, selectedCategory, setDialogState),
-                    _buildCategoryChip('हवामान', 'हवामान', Icons.cloud, Colors.blue, selectedCategory, setDialogState),
-                    _buildCategoryChip('टीप', 'टीप', Icons.lightbulb, Colors.orange, selectedCategory, setDialogState),
-                    _buildCategoryChip('योजना', 'योजना', Icons.agriculture, Colors.purple, selectedCategory, setDialogState),
+                    _buildCategoryChip('खत', Icons.grass, Colors.green, selectedCategory, (val) {
+                      setDialogState(() => selectedCategory = val);
+                    }),
+                    _buildCategoryChip('हवामान', Icons.cloud, Colors.blue, selectedCategory, (val) {
+                      setDialogState(() => selectedCategory = val);
+                    }),
+                    _buildCategoryChip('टीप', Icons.lightbulb, Colors.orange, selectedCategory, (val) {
+                      setDialogState(() => selectedCategory = val);
+                    }),
+                    _buildCategoryChip('योजना', Icons.agriculture, Colors.purple, selectedCategory, (val) {
+                      setDialogState(() => selectedCategory = val);
+                    }),
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Title Marathi
                 TextField(
                   controller: titleController,
@@ -706,7 +658,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Title English
                 TextField(
                   controller: titleEnController,
@@ -719,7 +671,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Description Marathi
                 TextField(
                   controller: descController,
@@ -733,7 +685,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Description English
                 TextField(
                   controller: descEnController,
@@ -747,7 +699,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Expiry time
                 Text(
                   'समाप्ती वेळ',
@@ -794,10 +746,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                 if (titleController.text.isEmpty || descController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'कृपया सर्व माहिती भरा',
-                        style: GoogleFonts.notoSansDevanagari(),
-                      ),
+                      content: Text('कृपया सर्व माहिती भरा', style: GoogleFonts.notoSansDevanagari()),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -807,19 +756,16 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                 if (_selectedMediaType != MediaType.text && _selectedMedia == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'कृपया प्रतिमा किंवा व्हिडिओ निवडा',
-                        style: GoogleFonts.notoSansDevanagari(),
-                      ),
+                      content: Text('कृपया प्रतिमा किंवा व्हिडिओ निवडा', style: GoogleFonts.notoSansDevanagari()),
                       backgroundColor: Colors.red,
                     ),
                   );
                   return;
                 }
-                
+
+                Navigator.pop(context);
                 _saveStatus(
                   status: status,
-                  index: index,
                   titleMr: titleController.text,
                   titleEn: titleEnController.text,
                   descMr: descController.text,
@@ -829,7 +775,6 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
                   mediaType: _selectedMediaType,
                   mediaFile: _selectedMedia,
                 );
-                Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF6F00),
@@ -876,7 +821,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
     );
   }
 
-  Widget _buildCategoryChip(String value, String label, IconData icon, Color color, String selected, StateSetter setState) {
+  Widget _buildCategoryChip(String value, IconData icon, Color color, String selected, Function(String) onSelected) {
     final isSelected = selected == value;
     return FilterChip(
       selected: isSelected,
@@ -886,7 +831,7 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
           Icon(icon, size: 16, color: isSelected ? Colors.white : color),
           const SizedBox(width: 4),
           Text(
-            label,
+            value,
             style: GoogleFonts.notoSansDevanagari(
               fontSize: 12,
               color: isSelected ? Colors.white : color,
@@ -896,15 +841,12 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
       ),
       selectedColor: color,
       checkmarkColor: Colors.white,
-      onSelected: (val) {
-        setState(() => selected = value);
-      },
+      onSelected: (val) => onSelected(value),
     );
   }
 
-  void _saveStatus({
+  Future<void> _saveStatus({
     StatusModel? status,
-    int? index,
     required String titleMr,
     required String titleEn,
     required String descMr,
@@ -913,103 +855,197 @@ class _AdminStatusScreenState extends State<AdminStatusScreen> {
     required int expiryHours,
     required MediaType mediaType,
     required File? mediaFile,
-  }) {
-    final categoryData = _getCategoryData(category);
-    
-    // Determine StatusType based on MediaType
-    final StatusType statusType;
-    if (mediaType == MediaType.image) {
-      statusType = StatusType.image;
-    } else if (mediaType == MediaType.video) {
-      statusType = StatusType.video;
-    } else {
-      statusType = StatusType.text;
-    }
+  }) async {
+    // Show loading dialog
+    bool isDialogOpen = true;
 
-    final newStatus = StatusModel(
-      id: status?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      title: titleEn,
-      titleMarathi: titleMr,
-      description: descEn,
-      descriptionMarathi: descMr,
-      type: statusType,
-      imageUrl: mediaFile?.path, // Store file path for local files
-      createdAt: DateTime.now(),
-      expiresAt: DateTime.now().add(Duration(hours: expiryHours)),
-      icon: categoryData['icon'],
-      categoryColor: categoryData['color'],
-      category: category,
-    );
-
-    setState(() {
-      if (index != null) {
-        _statuses[index] = newStatus;
-      } else {
-        _statuses.insert(0, newStatus);
-      }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => WillPopScope(
+        onWillPop: () async => false,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('अपलोड होत आहे...', style: GoogleFonts.notoSansDevanagari()),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).then((_) {
+      isDialogOpen = false;
     });
 
-    // Clear media after saving
-    _clearMedia();
+    try {
+      final StatusType statusType;
+      if (mediaType == MediaType.image) {
+        statusType = StatusType.image;
+      } else if (mediaType == MediaType.video) {
+        statusType = StatusType.video;
+      } else {
+        statusType = StatusType.text;
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          status == null ? 'स्टेटस जोडला!' : 'स्टेटस अपडेट केला!',
-          style: GoogleFonts.notoSansDevanagari(),
+      final newStatus = StatusModel(
+        id: status?.id ?? '',
+        title: titleEn,
+        titleMarathi: titleMr,
+        description: descEn,
+        descriptionMarathi: descMr,
+        type: statusType,
+        createdAt: status?.createdAt ?? DateTime.now(),
+        expiresAt: DateTime.now().add(Duration(hours: expiryHours)),
+        category: category,
+      );
+
+      if (status == null) {
+        await FirebaseService.addStatus(newStatus, mediaFile: mediaFile);
+      } else {
+        await FirebaseService.updateStatus(newStatus, newMediaFile: mediaFile);
+      }
+
+      _clearMedia();
+
+      // ✅ Close loading dialog safely
+      if (isDialogOpen && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // ✅ Wait a moment before showing success message
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == null ? 'स्टेटस जोडला!' : 'स्टेटस अपडेट केला!',
+            style: GoogleFonts.notoSansDevanagari(),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
         ),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
+      );
+    } catch (e) {
+      // ✅ Close loading dialog on error
+      if (isDialogOpen && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
 
-  Map<String, dynamic> _getCategoryData(String category) {
-    switch (category) {
-      case 'खत':
-        return {'icon': Icons.grass, 'color': Colors.green};
-      case 'हवामान':
-        return {'icon': Icons.cloud, 'color': Colors.blue};
-      case 'टीप':
-        return {'icon': Icons.lightbulb, 'color': Colors.orange};
-      case 'योजना':
-        return {'icon': Icons.agriculture, 'color': Colors.purple};
-      default:
-        return {'icon': Icons.info, 'color': Colors.grey};
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e', style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 
-  void _deleteStatus(int index) {
-    showDialog(
+  Future<void> _deleteStatus(StatusModel status) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('स्टेटस हटवा?', style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold)),
-        content: Text(
-          'तुम्हाला नक्की हे स्टेटस हटवायचे आहे का?',
-          style: GoogleFonts.notoSansDevanagari(),
-        ),
+        content: Text('तुम्हाला नक्की हे स्टेटस हटवायचे आहे का?', style: GoogleFonts.notoSansDevanagari()),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: Text('नाही', style: GoogleFonts.notoSansDevanagari()),
           ),
           ElevatedButton(
-            onPressed: () {
-              setState(() => _statuses.removeAt(index));
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('स्टेटस हटवला!', style: GoogleFonts.notoSansDevanagari()),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            },
+            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text('हटवा', style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseService.deleteStatus(status.id);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('स्टेटस हटवला!', style: GoogleFonts.notoSansDevanagari()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteExpiredStatuses() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('कालबाह्य स्टेटस हटवा?', style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold)),
+        content: Text('सर्व कालबाह्य स्टेटस हटवायचे आहेत का?', style: GoogleFonts.notoSansDevanagari()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('नाही', style: GoogleFonts.notoSansDevanagari()),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('हटवा', style: GoogleFonts.notoSansDevanagari(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseService.deleteExpiredStatuses();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('कालबाह्य स्टेटस हटवले!', style: GoogleFonts.notoSansDevanagari()),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 
