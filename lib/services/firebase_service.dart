@@ -663,8 +663,6 @@ class FirebaseService {
     }
   }
 
-
-
   }
 
 

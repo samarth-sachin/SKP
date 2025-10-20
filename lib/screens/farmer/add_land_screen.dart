@@ -17,25 +17,25 @@ class _AddLandScreenState extends State<AddLandScreen> {
   final _landNameController = TextEditingController();
   final _locationController = TextEditingController();
   final _areaController = TextEditingController();
-  
+
   String _selectedCrop = 'Cotton';
   bool _isLoading = false;
 
-  final List<String> _crops = [
-    'Cotton',
-    'Sugarcane',
-    'Wheat',
-    'Rice',
-    'Soybean',
-    'Maize',
-    'Groundnut',
-    'Onion',
-    'Tomato',
-    'Chilli',
-    'Grapes',
-    'Pomegranate',
-    'Banana',
-    'Other',
+  final List<Map<String, String>> _crops = [
+    {'en': 'Cotton', 'mr': 'कापूस'},
+    {'en': 'Sugarcane', 'mr': 'ऊस'},
+    {'en': 'Wheat', 'mr': 'गहू'},
+    {'en': 'Rice', 'mr': 'भात'},
+    {'en': 'Soybean', 'mr': 'सोयाबीन'},
+    {'en': 'Maize', 'mr': 'मका'},
+    {'en': 'Groundnut', 'mr': 'भुईमूग'},
+    {'en': 'Onion', 'mr': 'कांदा'},
+    {'en': 'Tomato', 'mr': 'टोमॅटो'},
+    {'en': 'Chilli', 'mr': 'मिरची'},
+    {'en': 'Grapes', 'mr': 'द्राक्षे'},
+    {'en': 'Pomegranate', 'mr': 'डाळिंब'},
+    {'en': 'Banana', 'mr': 'केळी'},
+    {'en': 'Other', 'mr': 'इतर'},
   ];
 
   @override
@@ -102,11 +102,20 @@ class _AddLandScreenState extends State<AddLandScreen> {
                                 color: Colors.blue[900],
                               ),
                             ),
+                            const SizedBox(height: 4),
                             Text(
                               'खत डोस ट्रॅक करण्यासाठी जमिनीचा तपशील द्या',
                               style: GoogleFonts.notoSansDevanagari(
                                 fontSize: 12,
                                 color: Colors.blue[900],
+                              ),
+                            ),
+                            Text(
+                              'Provide land details for fertilizer dose tracking',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.blue[900],
+                                fontStyle: FontStyle.italic,
                               ),
                             ),
                           ],
@@ -131,7 +140,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
                 TextFormField(
                   controller: _landNameController,
                   decoration: InputDecoration(
-                    hintText: 'उदा: पूर्व शेत, मुख्य जमीन',
+                    hintText: 'उदा: पूर्व शेत, मुख्य जमीन / Ex: East Field, Main Land',
                     hintStyle: GoogleFonts.notoSansDevanagari(fontSize: 13),
                     prefixIcon: const Icon(Icons.landscape, color: Color(0xFF2E7D32)),
                     filled: true,
@@ -151,7 +160,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'कृपया जमिनीचे नाव प्रविष्ट करा';
+                      return 'कृपया जमिनीचे नाव प्रविष्ट करा / Please enter land name';
                     }
                     return null;
                   },
@@ -172,7 +181,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
                 TextFormField(
                   controller: _locationController,
                   decoration: InputDecoration(
-                    hintText: 'उदा: नदीजवळ, मुख्य रस्त्यावर',
+                    hintText: 'उदा: नदीजवळ, मुख्य रस्त्यावर / Ex: Near River, Main Road',
                     hintStyle: GoogleFonts.notoSansDevanagari(fontSize: 13),
                     prefixIcon: const Icon(Icons.location_on, color: Color(0xFF2E7D32)),
                     filled: true,
@@ -192,7 +201,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'कृपया ठिकाण प्रविष्ट करा';
+                      return 'कृपया ठिकाण प्रविष्ट करा / Please enter location';
                     }
                     return null;
                   },
@@ -226,14 +235,34 @@ class _AddLandScreenState extends State<AddLandScreen> {
                         fontSize: 14,
                         color: Colors.black87,
                       ),
-                      items: _crops.map((String crop) {
+                      items: _crops.map((crop) {
                         return DropdownMenuItem<String>(
-                          value: crop,
+                          value: crop['en'],
                           child: Row(
                             children: [
                               const Icon(Icons.grass, size: 18, color: Color(0xFF2E7D32)),
                               const SizedBox(width: 12),
-                              Text(crop),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      crop['mr']!,
+                                      style: GoogleFonts.notoSansDevanagari(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      crop['en']!,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         );
@@ -263,7 +292,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
                   controller: _areaController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    hintText: 'उदा: 5.5',
+                    hintText: 'उदा: 5.5 / Ex: 5.5',
                     hintStyle: GoogleFonts.poppins(fontSize: 13),
                     prefixIcon: const Icon(Icons.straighten, color: Color(0xFF2E7D32)),
                     suffixText: 'एकर / acres',
@@ -288,10 +317,13 @@ class _AddLandScreenState extends State<AddLandScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'कृपया क्षेत्रफळ प्रविष्ट करा';
+                      return 'कृपया क्षेत्रफळ प्रविष्ट करा / Please enter area';
                     }
                     if (double.tryParse(value) == null) {
-                      return 'कृपया वैध संख्या प्रविष्ट करा';
+                      return 'कृपया वैध संख्या प्रविष्ट करा / Please enter valid number';
+                    }
+                    if (double.parse(value) <= 0) {
+                      return 'क्षेत्रफळ ० पेक्षा जास्त असावे / Area must be greater than 0';
                     }
                     return null;
                   },
@@ -316,19 +348,31 @@ class _AddLandScreenState extends State<AddLandScreen> {
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
                         : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.check_circle, size: 24),
-                              const SizedBox(width: 12),
-                              Text(
-                                'जमीन जोडा / Add Land',
-                                style: GoogleFonts.notoSansDevanagari(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle, size: 24),
+                        const SizedBox(width: 12),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'जमीन जोडा',
+                              style: GoogleFonts.notoSansDevanagari(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ],
-                          ),
+                            ),
+                            Text(
+                              'Add Land',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -352,7 +396,7 @@ class _AddLandScreenState extends State<AddLandScreen> {
       final farmerId = prefs.getString('farmerId') ?? '1';
 
       final newLand = LandModel(
-        id: '',
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         farmerId: farmerId,
         landName: _landNameController.text.trim(),
         location: _locationController.text.trim(),
@@ -370,9 +414,24 @@ class _AddLandScreenState extends State<AddLandScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
-                Text(
-                  'जमीन यशस्वीरित्या जोडली!',
-                  style: GoogleFonts.notoSansDevanagari(),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'जमीन यशस्वीरित्या जोडली!',
+                        style: GoogleFonts.notoSansDevanagari(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Land added successfully!',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -381,19 +440,57 @@ class _AddLandScreenState extends State<AddLandScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
+            duration: const Duration(seconds: 3),
           ),
         );
-        Navigator.pop(context);
+
+        // Clear form after successful submission
+        _formKey.currentState?.reset();
+        setState(() {
+          _selectedCrop = 'Cotton';
+          _landNameController.clear();
+          _locationController.clear();
+          _areaController.clear();
+        });
+
+        // Navigate back after a short delay
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (mounted) {
+          Navigator.pop(context, true); // Return success flag
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'त्रुटी: $e',
-              style: GoogleFonts.notoSansDevanagari(),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'त्रुटी आली: $e',
+                        style: GoogleFonts.notoSansDevanagari(),
+                      ),
+                      Text(
+                        'Error occurred: $e',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }

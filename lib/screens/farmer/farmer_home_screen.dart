@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 import '../../services/firebase_service.dart';
+import '../../services/notification_service.dart';
 import '../../models/farmer_model.dart';
 import '../../models/land_model.dart';
 import '../../models/dose_model.dart';
@@ -26,6 +28,8 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   String _farmerId = '';
   String _farmerName = '';
   FarmerModel? _currentFarmer;
+  DateTime? _nextDoseDate;
+  int _unreadNotifications = 0;
 
   // Exit confirmation handler
   Future<bool> _onWillPop() async {
@@ -78,6 +82,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   void initState() {
     super.initState();
     _loadFarmerData();
+    _calculateNextDose();
   }
 
   // ✅ Load farmer data from SharedPreferences & Firebase
@@ -95,6 +100,34 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     }
   }
 
+  // ✅ Calculate next dose date from all lands
+  Future<void> _calculateNextDose() async {
+    if (_farmerId.isEmpty) return;
+
+    try {
+      final lands = await FirebaseService.getLandsByFarmerId(_farmerId).first;
+      DateTime? nearest;
+
+      for (var land in lands) {
+        final doses = await FirebaseService.getDosesForLand(land.id).first;
+        if (doses.isNotEmpty) {
+          final latestDose = doses.first;
+          if (latestDose.nextDoseDate != null) {
+            if (nearest == null || latestDose.nextDoseDate!.isBefore(nearest)) {
+              nearest = latestDose.nextDoseDate;
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() => _nextDoseDate = nearest);
+      }
+    } catch (e) {
+      print('Error calculating next dose: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screens = [
@@ -109,132 +142,207 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
       onWillPop: _onWillPop,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF2E7D32), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Image.asset(
-                      'assets/images/skp_logo.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'SKP',
-                              style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'शेतसखा',
-                    style: GoogleFonts.notoSansDevanagari(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2E7D32),
-                    ),
-                  ),
-                  Text(
-                    'शेतकरी मित्र',
-                    style: GoogleFonts.notoSansDevanagari(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
+        appBar: _selectedIndex == 0 ? _buildAppBar() : null,
+        body: screens[_selectedIndex],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
               ),
             ],
           ),
-          actions: [
-            Stack(
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: (index) => setState(() => _selectedIndex = index),
+            selectedItemColor: const Color(0xFF2E7D32),
+            unselectedItemColor: Colors.grey[400],
+            selectedLabelStyle: GoogleFonts.notoSansDevanagari(fontSize: 12, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: GoogleFonts.notoSansDevanagari(fontSize: 11),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            items: [
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.home_rounded),
+                label: 'मुख्यपृष्ठ',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.circle_notifications_rounded),
+                label: 'अपडेट्स',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.wb_sunny_rounded),
+                label: 'हवामान',
+              ),
+              BottomNavigationBarItem(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.notifications_rounded),
+                    if (_unreadNotifications > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                label: 'सूचना',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.person_rounded),
+                label: 'प्रोफाइल',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.white,
+      title: Row(
+        children: [
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF2E7D32), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Image.asset(
+                  'assets/images/skp_logo.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'SKP',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'शेतसखा',
+                style: GoogleFonts.notoSansDevanagari(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2E7D32),
+                ),
+              ),
+              Text(
+                'शेतकरी मित्र',
+                style: GoogleFonts.notoSansDevanagari(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        // ✅ Dynamic notification badge
+        StreamBuilder<int>(
+          stream: NotificationService.getUnreadCount(_farmerId),
+          builder: (context, snapshot) {
+            final count = snapshot.data ?? 0;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _unreadNotifications != count) {
+                setState(() => _unreadNotifications = count);
+              }
+            });
+
+            return Stack(
               children: [
                 IconButton(
                   icon: const Icon(Icons.notifications_outlined, color: Color(0xFF2E7D32)),
                   onPressed: () => setState(() => _selectedIndex = 3),
                 ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                    child: Text(
-                      '3',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                if (count > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
                       ),
-                      textAlign: TextAlign.center,
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        count > 9 ? '9+' : '$count',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
-                ),
               ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.phone, color: Color(0xFF2E7D32)),
-              onPressed: _contactShop,
-            ),
-          ],
+            );
+          },
         ),
-        body: screens[_selectedIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: const Color(0xFF2E7D32),
-          unselectedItemColor: Colors.grey[400],
-          selectedLabelStyle: GoogleFonts.notoSansDevanagari(fontSize: 12, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: GoogleFonts.notoSansDevanagari(fontSize: 11),
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home, size: 28), label: 'मुख्यपृष्ठ'),
-            BottomNavigationBarItem(icon: Icon(Icons.circle_notifications, size: 28), label: 'अपडेट्स'),
-            BottomNavigationBarItem(icon: Icon(Icons.wb_sunny, size: 28), label: 'हवामान'),
-            BottomNavigationBarItem(icon: Icon(Icons.notifications, size: 28), label: 'सूचना'),
-            BottomNavigationBarItem(icon: Icon(Icons.person, size: 28), label: 'प्रोफाइल'),
-          ],
+        IconButton(
+          icon: const Icon(Icons.phone, color: Color(0xFF2E7D32)),
+          onPressed: _contactShop,
         ),
-      ),
+      ],
     );
   }
 
@@ -246,6 +354,7 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         await _loadFarmerData();
+        await _calculateNextDose();
         setState(() {});
       },
       child: SingleChildScrollView(
@@ -253,85 +362,8 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Card
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2E7D32).withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.wb_sunny, color: Colors.amber, size: 32),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'नमस्कार, $_farmerName',
-                              style: GoogleFonts.notoSansDevanagari(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Text(
-                              'आज पाऊस होण्याची शक्यता 20%',
-                              style: GoogleFonts.notoSansDevanagari(
-                                fontSize: 13,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.schedule, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'पुढील खत डोस: 5 दिवसांनी',
-                            style: GoogleFonts.notoSansDevanagari(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // ✅ Dynamic Welcome Card with Next Dose
+            _buildWelcomeCard(),
 
             // Quick Actions
             Padding(
@@ -414,6 +446,111 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
+  // ✅ Dynamic Welcome Card
+  Widget _buildWelcomeCard() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2E7D32).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.wb_sunny, color: Colors.amber, size: 32),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'नमस्कार, $_farmerName',
+                      style: GoogleFonts.notoSansDevanagari(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      DateTime.now().hour < 12
+                          ? 'शुभ सकाळ! आजचा दिवस चांगला जावो'
+                          : DateTime.now().hour < 17
+                          ? 'शुभ दुपार!'
+                          : 'शुभ संध्याकाळ!',
+                      style: GoogleFonts.notoSansDevanagari(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // ✅ Dynamic Next Dose Info
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _nextDoseDate != null
+                        ? 'पुढील खत डोस: ${_getDaysUntil(_nextDoseDate!)}'
+                        : 'पुढील खत डोसची माहिती उपलब्ध नाही',
+                    style: GoogleFonts.notoSansDevanagari(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Calculate days until next dose
+  String _getDaysUntil(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+
+    if (difference < 0) {
+      return 'आज देणे आवश्यक!';
+    } else if (difference == 0) {
+      return 'आज';
+    } else if (difference == 1) {
+      return 'उद्या';
+    } else {
+      return '$difference दिवसांनी';
+    }
+  }
+
   Widget _buildQuickActionCard({
     required IconData icon,
     required String label,
@@ -466,7 +603,9 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
     );
   }
 
-  // ✅ Build lands list from Firebase
+  // Rest of the methods remain the same...
+  // (Continue with _buildLandsList, _buildLandCard, etc. - they're already good)
+
   Widget _buildLandsList() {
     return StreamBuilder<List<LandModel>>(
       stream: FirebaseService.getLandsByFarmerId(_farmerId),
@@ -961,6 +1100,6 @@ class _FarmerHomeScreenState extends State<FarmerHomeScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return DateFormat('dd/MM/yyyy').format(date);
   }
 }
